@@ -1,8 +1,16 @@
 # Olive 🫒
 
-[![Versión](https://img.shields.io/badge/versión-1.0.0-green.svg)](https://github.com/YaVendio/olive/releases)
-[![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![Licencia](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+[![Tests](https://github.com/YaVendio/olive/actions/workflows/tests.yml/badge.svg)](https://github.com/YaVendio/olive/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/YaVendio/olive/branch/main/graph/badge.svg)](https://codecov.io/gh/YaVendio/olive)
+[![CodeQL](https://github.com/YaVendio/olive/actions/workflows/codeql.yml/badge.svg)](https://github.com/YaVendio/olive/actions/workflows/codeql.yml)
+[![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FYaVendio%2Folive%2Fmain%2Fpyproject.toml)](https://github.com/YaVendio/olive/blob/main/pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/YaVendio/olive)](https://github.com/YaVendio/olive/releases)
+[![GitHub stars](https://img.shields.io/github/stars/YaVendio/olive)](https://github.com/YaVendio/olive/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/YaVendio/olive)](https://github.com/YaVendio/olive/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/YaVendio/olive/pulls)
+
+_[English documentation available](README_EN.md) / [Documentación en inglés disponible](README_EN.md)_
 
 > Un framework minimalista para exponer endpoints de FastAPI como herramientas de LangChain con integración de Temporal para ejecución confiable y escalable.
 
@@ -133,19 +141,19 @@ async def analizar_sentimiento(texto: str, detallado: bool = False) -> dict:
     """Realiza análisis de sentimiento en el texto."""
     # Implementación asíncrona
     await asyncio.sleep(0.1)  # Simular procesamiento
-    
+
     resultado = {
         "sentimiento": "positivo",
         "puntuación": 0.85,
         "texto": texto
     }
-    
+
     if detallado:
         resultado["detalles"] = {
             "confianza": 0.95,
             "emociones": ["alegría", "optimismo"]
         }
-    
+
     return resultado
 ```
 
@@ -168,7 +176,7 @@ from olive_client import OliveClient
 async with OliveClient("http://localhost:8000") as client:
     # Listar herramientas disponibles
     herramientas = await client.get_tools()
-    
+
     # Llamar una herramienta
     resultado = await client.call_tool("traducir", {
         "texto": "Hola mundo",
@@ -219,7 +227,7 @@ async def procesar_documento_grande(
     """Procesa documentos grandes con operaciones complejas."""
     # Esta función se ejecutará en Temporal con la configuración especificada
     resultado = await operacion_compleja(contenido)
-    
+
     return {
         "contenido_procesado": resultado,
         "formato": formato_salida,
@@ -265,7 +273,7 @@ temporal:
   address: localhost:7233
   namespace: default
   task_queue: olive-tools
-  
+
   # Configuración para Temporal Cloud (producción)
   cloud_namespace: tu-namespace.a2dd6
   cloud_api_key: ${TEMPORAL_CLOUD_API_KEY}
@@ -274,11 +282,11 @@ temporal:
 server:
   host: 0.0.0.0
   port: 8000
-  reload: true  # Auto-reload en desarrollo
+  reload: true # Auto-reload en desarrollo
 
 # Configuración por defecto de herramientas
 tools:
-  default_timeout: 300  # 5 minutos
+  default_timeout: 300 # 5 minutos
   default_retry_attempts: 3
 ```
 
@@ -327,12 +335,12 @@ import asyncio
 async def tarea_pesada(datos: list[str]) -> dict:
     """Procesa grandes cantidades de datos."""
     resultados = []
-    
+
     for item in datos:
         # Procesamiento paralelo
         resultado = await procesar_item(item)
         resultados.append(resultado)
-    
+
     return {
         "procesados": len(resultados),
         "exitosos": sum(1 for r in resultados if r["exito"]),
@@ -383,12 +391,12 @@ olive status
 
 ### Endpoints del Servidor
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/olive/tools` | Lista todas las herramientas disponibles |
-| POST | `/olive/tools/call` | Ejecuta una herramienta |
-| GET | `/olive/health` | Estado de salud del servicio |
-| GET | `/docs` | Documentación interactiva de FastAPI |
+| Método | Endpoint            | Descripción                              |
+| ------ | ------------------- | ---------------------------------------- |
+| GET    | `/olive/tools`      | Lista todas las herramientas disponibles |
+| POST   | `/olive/tools/call` | Ejecuta una herramienta                  |
+| GET    | `/olive/health`     | Estado de salud del servicio             |
+| GET    | `/docs`             | Documentación interactiva de FastAPI     |
 
 ### Decorador @olive_tool
 
@@ -403,6 +411,7 @@ olive status
 ```
 
 **Parámetros:**
+
 - `func`: La función a decorar (automático cuando se usa sin paréntesis)
 - `description`: Descripción personalizada (por defecto usa el docstring)
 - `timeout_seconds`: Timeout de Temporal en segundos
@@ -413,7 +422,7 @@ olive status
 ```python
 class OliveClient:
     def __init__(self, base_url: str, timeout: float = 30.0)
-    
+
     async def get_tools(self) -> list[dict]
     async def call_tool(self, tool_name: str, arguments: dict) -> Any
     async def as_langchain_tools(self) -> list[StructuredTool]
@@ -454,7 +463,7 @@ async def resumir_texto(
     # Simulación de resumen
     palabras = texto.split()[:max_palabras]
     resumen = " ".join(palabras) + "..."
-    
+
     return {
         "resumen": resumen,
         "longitud_original": len(texto.split()),
@@ -488,21 +497,21 @@ async def buscar_usuarios(
     """Busca usuarios con filtros opcionales."""
     query = "SELECT * FROM usuarios WHERE 1=1"
     params = []
-    
+
     if nombre:
         params.append(nombre)
         query += f" AND nombre ILIKE ${len(params)}"
-    
+
     if email:
         params.append(email)
         query += f" AND email ILIKE ${len(params)}"
-    
+
     if activo is not None:
         params.append(activo)
         query += f" AND activo = ${len(params)}"
-    
+
     query += f" LIMIT {limite}"
-    
+
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(query, *params)
         return [dict(row) for row in rows]
@@ -555,20 +564,20 @@ async def obtener_clima(
 ) -> dict:
     """Obtiene información del clima usando OpenWeatherMap."""
     api_key = os.getenv("OPENWEATHER_API_KEY")
-    
+
     params = {
         "q": f"{ciudad},{pais}" if pais else ciudad,
         "appid": api_key,
         "units": unidades,
         "lang": "es"
     }
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.get(
             "https://api.openweathermap.org/data/2.5/weather",
             params=params
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             return {
@@ -596,11 +605,11 @@ async def convertir_moneda(
         response = await client.get(
             f"https://api.exchangerate-api.com/v4/latest/{moneda_origen}"
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             tasa = data["rates"].get(moneda_destino)
-            
+
             if tasa:
                 resultado = cantidad * tasa
                 return {
@@ -613,7 +622,7 @@ async def convertir_moneda(
                 }
             else:
                 return {"error": f"Moneda {moneda_destino} no encontrada"}
-        
+
         return {"error": "No se pudo obtener las tasas de cambio"}
 ```
 

@@ -1,5 +1,17 @@
 # Olive 🫒
 
+[![Tests](https://github.com/YaVendio/olive/actions/workflows/tests.yml/badge.svg)](https://github.com/YaVendio/olive/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/YaVendio/olive/branch/main/graph/badge.svg)](https://codecov.io/gh/YaVendio/olive)
+[![CodeQL](https://github.com/YaVendio/olive/actions/workflows/codeql.yml/badge.svg)](https://github.com/YaVendio/olive/actions/workflows/codeql.yml)
+[![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FYaVendio%2Folive%2Fmain%2Fpyproject.toml)](https://github.com/YaVendio/olive/blob/main/pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/YaVendio/olive)](https://github.com/YaVendio/olive/releases)
+[![GitHub stars](https://img.shields.io/github/stars/YaVendio/olive)](https://github.com/YaVendio/olive/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/YaVendio/olive)](https://github.com/YaVendio/olive/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/YaVendio/olive/pulls)
+
+_[Documentación en español disponible](README.md) / [Spanish documentation available](README.md)_
+
 A minimal framework for exposing FastAPI endpoints as LangChain tools.
 
 ## Overview
