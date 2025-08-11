@@ -150,9 +150,6 @@ cython_debug/
 Thumbs.db
 ehthumbs.db
 
-# uv
-uv.lock
-
 # basedpyright / pyright
 .basedpyright/
 .pyright/
