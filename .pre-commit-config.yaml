@@ -21,6 +21,33 @@ repos:
       # Run the formatter
       - id: ruff-format
 
+  - repo: local
+    hooks:
+      - id: ruff-check-pre-push
+        name: ruff check (pre-push)
+        entry: uv run ruff check .
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: ruff-format-check-pre-push
+        name: ruff format --check (pre-push)
+        entry: uv run ruff format --check .
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: basedpyright
+        name: basedpyright (type check)
+        entry: uv run basedpyright
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: pytest
+        name: pytest (unit tests)
+        entry: uv run python -m pytest --cov=olive --cov=olive_client --maxfail=1 -q
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
 ci:
   autoupdate_schedule: weekly
   skip: [mypy] # Skip mypy in pre-commit.ci

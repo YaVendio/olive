@@ -1,4 +1,4 @@
-.PHONY: help install dev test coverage lint format type-check clean run-example run-client run-server all
+.PHONY: help install dev test coverage lint format type-check clean run-example run-client run-server all push
 
 # Default target
 help:
@@ -14,6 +14,7 @@ help:
 	@echo "  make run-example  Run the example server"
 	@echo "  make run-client   Run the example client"
 	@echo "  make all          Run format, lint, type-check, and test"
+	@echo "  make push         Run pre-push checks and push to git"
 
 # Install dependencies
 install:
@@ -66,3 +67,10 @@ run-server:
 
 # Run all checks
 all: format lint type-check test
+
+# Run pre-push checks and push to git
+push:
+	@echo "Running pre-push checks..."
+	@uv run pre-commit run --hook-stage pre-push --all-files
+	@echo "All checks passed! Pushing to remote..."
+	@git push
