@@ -2,6 +2,8 @@
 
 This guide explains how to install the `olive` package using `uv` from GitHub's private package registry.
 
+> **Note**: This is the recommended installation method. For legacy pip installation, see the pip example in the README.
+
 ## Prerequisites
 
 1. [uv](https://github.com/astral-sh/uv) package manager installed

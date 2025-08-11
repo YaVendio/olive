@@ -20,8 +20,6 @@ Olive lets you easily convert your FastAPI endpoints into tools that can be used
 
 This package is hosted on GitHub's private package registry. You'll need a GitHub personal access token with `read:packages` permission.
 
-#### Using uv (Recommended)
-
 ```bash
 # Install directly from Git
 uv pip install git+ssh://git@github.com/YaVendio/olive.git
@@ -30,18 +28,12 @@ uv pip install git+ssh://git@github.com/YaVendio/olive.git
 uv add git+ssh://git@github.com/YaVendio/olive.git
 ```
 
-#### Using pip
+For detailed installation instructions, see [INSTALL_WITH_UV.md](INSTALL_WITH_UV.md).
 
+**Note**: If you need to use pip instead of uv, you can install from GitHub Package Registry:
 ```bash
-# Using pip with authentication
 pip install olive --index-url https://USERNAME:TOKEN@pypi.pkg.github.com/YaVendio
 ```
-
-Replace `USERNAME` with your GitHub username and `TOKEN` with your personal access token.
-
-For detailed installation instructions:
-- **uv**: See [INSTALL_WITH_UV.md](INSTALL_WITH_UV.md) (recommended)
-- **pip**: See [PACKAGE_INSTALLATION.md](PACKAGE_INSTALLATION.md)
 
 ### From Source
 
