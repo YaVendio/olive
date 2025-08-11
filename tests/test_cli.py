@@ -319,7 +319,7 @@ def test_main_module():
     cli_path = olive.cli.__file__
 
     # Run the cli module as __main__ with a mocked app
-    test_script = f'''
+    test_script = f"""
 import sys
 import unittest.mock
 
@@ -341,7 +341,7 @@ with unittest.mock.patch("olive.cli.app") as mock_app:
 
     # Verify app was called (through main())
     assert mock_app.called
-'''
+"""
 
     # Run the script
 
