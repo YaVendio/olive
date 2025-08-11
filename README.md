@@ -30,11 +30,6 @@ uv add git+ssh://git@github.com/YaVendio/olive.git
 
 For detailed installation instructions, see [INSTALL_WITH_UV.md](INSTALL_WITH_UV.md).
 
-**Note**: If you need to use pip instead of uv, you can install from GitHub Package Registry:
-```bash
-pip install olive --index-url https://USERNAME:TOKEN@pypi.pkg.github.com/YaVendio
-```
-
 ### From Source
 
 ```bash
