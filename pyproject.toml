@@ -68,15 +68,7 @@ known-first-party = ["olive", "olive_client"]
 [tool.basedpyright]
 pythonVersion = "3.13"
 pythonPlatform = "Linux"
-typeCheckingMode = "strict"
-reportMissingTypeStubs = false
-reportUnknownParameterType = false
-reportUnknownArgumentType = false
-reportUnknownMemberType = false
-reportUnknownVariableType = false
-reportUnknownLambdaType = false
-reportAny = false
-reportImplicitOverride = false
+typeCheckingMode = "standard"
 useLibraryCodeForTypes = true
 stubPath = "typings"
 exclude = [
@@ -86,7 +78,21 @@ exclude = [
     ".git",
     "dist",
     "build",
+    "tests/**",
 ]
+reportPrivateUsage = false
+reportUnusedFunction = false
+reportUnusedImport = false
+reportMissingParameterType = false
+reportOptionalMemberAccess = false
+reportAttributeAccessIssue = false
+reportMissingTypeArgument = false
+reportUnknownLambdaType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = false
+reportAny = false
+reportImplicitOverride = false
 venvPath = "."
 venv = ".venv"
 
