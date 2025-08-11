@@ -43,19 +43,14 @@ uv pip install git+ssh://git@github.com/YaVendio/olive.git
 uv pip install git+https://github.com/YaVendio/olive.git
 ```
 
-### Method 2: Using GitHub Package Registry
+### Method 2: From GitHub Releases
 
-Configure authentication for GitHub Package Registry:
+Download the latest wheel file from [GitHub Releases](https://github.com/YaVendio/olive/releases):
 
 ```bash
-# Set environment variables
-export UV_INDEX_URL="https://pypi.pkg.github.com/YaVendio"
-export UV_EXTRA_INDEX_URL="https://pypi.org/simple"
-export UV_PUBLISH_USERNAME="__token__"
-export UV_PUBLISH_PASSWORD="YOUR_GITHUB_TOKEN"
-
-# Install the package
-uv pip install olive
+# Download the wheel file from the latest release
+# Then install it locally
+uv pip install path/to/olive-1.0.0-py3-none-any.whl
 ```
 
 ### Method 3: In pyproject.toml

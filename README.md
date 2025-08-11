@@ -16,9 +16,9 @@ Olive lets you easily convert your FastAPI endpoints into tools that can be used
 
 ## Installation
 
-### From GitHub Package Registry (Private)
+### From GitHub (Private Repository)
 
-This package is hosted on GitHub's private package registry. You'll need a GitHub personal access token with `read:packages` permission.
+This package is distributed through GitHub. You can install it directly from Git or download releases.
 
 ```bash
 # Install directly from Git
