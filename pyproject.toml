@@ -13,10 +13,6 @@ classifiers = [
     "Private :: Do Not Upload",
 ]
 
-[project.urls]
-"Homepage" = "https://github.com/YaVendio/olive"
-"Repository" = "https://github.com/YaVendio/olive"
-"Bug Reports" = "https://github.com/YaVendio/olive/issues"
 dependencies = [
     "fastapi>=0.115.0",
     "pydantic>=2.10.0",
@@ -28,6 +24,11 @@ dependencies = [
     "pyyaml>=6.0",
     "pytest>=8.4.1",
 ]
+
+[project.urls]
+"Homepage" = "https://github.com/YaVendio/olive"
+"Repository" = "https://github.com/YaVendio/olive"
+"Bug Reports" = "https://github.com/YaVendio/olive/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -87,3 +88,7 @@ exclude = [
 ]
 venvPath = "."
 venv = ".venv"
+
+[tool.uv]
+# Publishing configuration for GitHub Package Registry
+publish-url = "https://pypi.pkg.github.com/YaVendio"

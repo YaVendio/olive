@@ -6,6 +6,9 @@ This guide explains how to install the `olive` package from GitHub's private pac
 
 1. A GitHub personal access token with `read:packages` permission
 2. Python 3.13 or higher
+3. Either `pip` or `uv` package manager
+
+> **Recommended**: We recommend using `uv` for faster installation and better dependency resolution. See [INSTALL_WITH_UV.md](INSTALL_WITH_UV.md) for detailed `uv` instructions.
 
 ## Creating a Personal Access Token
 
