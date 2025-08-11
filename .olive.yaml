@@ -1,0 +1,13 @@
+# Olive Configuration
+temporal:
+  address: localhost:7233
+  namespace: default
+  task_queue: olive-tools
+
+server:
+  host: 0.0.0.0
+  port: 8000
+
+tools:
+  default_timeout: 300
+  default_retry_attempts: 3

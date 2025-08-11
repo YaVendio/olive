@@ -1,0 +1,127 @@
+"""Configuration management for Olive."""
+
+import os
+from pathlib import Path
+
+import yaml
+from pydantic import BaseModel, Field
+
+
+class TemporalConfig(BaseModel):
+    """Temporal configuration."""
+
+    address: str = Field(default="localhost:7233", description="Temporal server address")
+    namespace: str = Field(default="default", description="Temporal namespace")
+    task_queue: str = Field(default="olive-tools", description="Task queue name")
+
+    # Cloud configuration
+    cloud_namespace: str | None = Field(default=None, description="Temporal Cloud namespace")
+    cloud_api_key: str | None = Field(default=None, description="Temporal Cloud API key")
+
+    @property
+    def is_cloud(self) -> bool:
+        """Check if using Temporal Cloud."""
+        return bool(self.cloud_namespace and self.cloud_api_key)
+
+
+class ServerConfig(BaseModel):
+    """Server configuration."""
+
+    host: str = Field(default="0.0.0.0", description="Server host")
+    port: int = Field(default=8000, description="Server port")
+    reload: bool = Field(default=True, description="Enable auto-reload in dev mode")
+
+
+class ToolsConfig(BaseModel):
+    """Tools default configuration."""
+
+    default_timeout: int = Field(default=300, description="Default timeout in seconds")
+    default_retry_attempts: int = Field(default=3, description="Default retry attempts")
+
+
+class OliveConfig(BaseModel):
+    """Main Olive configuration."""
+
+    temporal: TemporalConfig = Field(default_factory=TemporalConfig)
+    server: ServerConfig = Field(default_factory=ServerConfig)
+    tools: ToolsConfig = Field(default_factory=ToolsConfig)
+
+    @classmethod
+    def from_file(cls, path: Path | None = None) -> "OliveConfig":
+        """Load configuration from file."""
+        # Handle case where path might be a typer OptionInfo object
+        if hasattr(path, "default"):
+            path = path.default
+
+        if path is None:
+            # Look for .olive.yaml in current directory
+            path = Path.cwd() / ".olive.yaml"
+            if not path.exists():
+                # Look for olive.yaml
+                path = Path.cwd() / "olive.yaml"
+
+        if path and path.exists():
+            with open(path) as f:
+                data = yaml.safe_load(f) or {}
+            return cls(**data)
+
+        return cls()
+
+    @classmethod
+    def from_env(cls) -> "OliveConfig":
+        """Load configuration from environment variables."""
+        config = cls()
+
+        # Temporal settings
+        if address := os.getenv("OLIVE_TEMPORAL_ADDRESS"):
+            config.temporal.address = address
+        if namespace := os.getenv("OLIVE_TEMPORAL_NAMESPACE"):
+            config.temporal.namespace = namespace
+        if task_queue := os.getenv("OLIVE_TEMPORAL_TASK_QUEUE"):
+            config.temporal.task_queue = task_queue
+
+        # Temporal Cloud
+        if cloud_ns := os.getenv("OLIVE_TEMPORAL_CLOUD_NAMESPACE"):
+            config.temporal.cloud_namespace = cloud_ns
+        if cloud_key := os.getenv("OLIVE_TEMPORAL_CLOUD_API_KEY"):
+            config.temporal.cloud_api_key = cloud_key
+
+        # Server settings
+        if host := os.getenv("OLIVE_SERVER_HOST"):
+            config.server.host = host
+        if port := os.getenv("OLIVE_SERVER_PORT"):
+            config.server.port = int(port)
+
+        # Tools settings
+        if timeout := os.getenv("OLIVE_TOOLS_DEFAULT_TIMEOUT"):
+            config.tools.default_timeout = int(timeout)
+        if retry := os.getenv("OLIVE_TOOLS_DEFAULT_RETRY_ATTEMPTS"):
+            config.tools.default_retry_attempts = int(retry)
+
+        return config
+
+    def merge_with_env(self) -> "OliveConfig":
+        """Merge current config with environment variables."""
+        env_config = self.from_env()
+
+        # Only override if env vars are set
+        if os.getenv("OLIVE_TEMPORAL_ADDRESS"):
+            self.temporal.address = env_config.temporal.address
+        if os.getenv("OLIVE_TEMPORAL_NAMESPACE"):
+            self.temporal.namespace = env_config.temporal.namespace
+        if os.getenv("OLIVE_TEMPORAL_TASK_QUEUE"):
+            self.temporal.task_queue = env_config.temporal.task_queue
+        if os.getenv("OLIVE_TEMPORAL_CLOUD_NAMESPACE"):
+            self.temporal.cloud_namespace = env_config.temporal.cloud_namespace
+        if os.getenv("OLIVE_TEMPORAL_CLOUD_API_KEY"):
+            self.temporal.cloud_api_key = env_config.temporal.cloud_api_key
+        if os.getenv("OLIVE_SERVER_HOST"):
+            self.server.host = env_config.server.host
+        if os.getenv("OLIVE_SERVER_PORT"):
+            self.server.port = env_config.server.port
+        if os.getenv("OLIVE_TOOLS_DEFAULT_TIMEOUT"):
+            self.tools.default_timeout = env_config.tools.default_timeout
+        if os.getenv("OLIVE_TOOLS_DEFAULT_RETRY_ATTEMPTS"):
+            self.tools.default_retry_attempts = env_config.tools.default_retry_attempts
+
+        return self
