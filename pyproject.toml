@@ -88,7 +88,3 @@ exclude = [
 ]
 venvPath = "."
 venv = ".venv"
-
-[tool.uv]
-# Publishing configuration for GitHub Package Registry
-publish-url = "https://pypi.pkg.github.com/YaVendio"

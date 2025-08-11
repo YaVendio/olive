@@ -38,10 +38,22 @@ jobs:
       - name: Build package
         run: uv build
 
-      - name: Publish to GitHub Package Registry
-        env:
-          UV_PUBLISH_USERNAME: __token__
-          UV_PUBLISH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          UV_PUBLISH_URL: https://pypi.pkg.github.com/${{ github.repository_owner }}
-        run: |
-          uv publish
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          body: |
+            ## Installation
+
+            Install directly from Git using uv:
+            ```bash
+            uv add git+ssh://git@github.com/${{ github.repository }}@${{ github.ref_name }}
+            ```
+
+            Or download the wheel file from this release and install locally:
+            ```bash
+            uv pip install olive-*.whl
+            ```
