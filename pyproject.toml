@@ -2,7 +2,21 @@
 name = "olive"
 version = "1.0.0"
 description = "Minimal framework for exposing FastAPI endpoints as LangChain tools with Temporal"
+authors = [{ name = "YaVendio", email = "t@yavendio.com" }]
+readme = "README.md"
 requires-python = ">=3.13"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Private :: Do Not Upload",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/YaVendio/olive"
+"Repository" = "https://github.com/YaVendio/olive"
+"Bug Reports" = "https://github.com/YaVendio/olive/issues"
 dependencies = [
     "fastapi>=0.115.0",
     "pydantic>=2.10.0",
