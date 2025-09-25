@@ -1,6 +1,7 @@
 """Olive CLI using Typer with Rich output."""
 
 import asyncio
+import socket
 import subprocess
 from pathlib import Path
 from typing import Annotated
@@ -24,23 +25,33 @@ app = typer.Typer(
 
 
 def check_temporal_running(address: str = "localhost:7233") -> bool:
-    """Check if Temporal server is running."""
-    try:
-        import httpx
+    """Check if Temporal gRPC port is accepting connections.
 
-        response = httpx.get(f"http://{address}/api/v1/system.info", timeout=2.0)
-        return response.status_code == 200
+    Note: Temporal listens on gRPC (default 7233). There is no HTTP endpoint on that port.
+    We test TCP connectivity instead of making an HTTP request.
+    """
+    try:
+        if ":" in address:
+            host, port_str = address.split(":", 1)
+        else:
+            host, port_str = address, "7233"
+        with socket.create_connection((host, int(port_str)), timeout=1.0):
+            return True
     except Exception:
         return False
 
 
-def start_temporal_dev_server() -> subprocess.Popen[bytes]:
-    """Start Temporal dev server in background."""
-    return subprocess.Popen(
-        ["temporal", "server", "start-dev", "--db-filename", ".temporal.db"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+def start_temporal_dev_server() -> subprocess.Popen[bytes] | None:
+    """Start Temporal dev server in background (if CLI is installed)."""
+    try:
+        return subprocess.Popen(
+            ["temporal", "server", "start-dev", "--db-filename", ".temporal.db"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except FileNotFoundError:
+        console.print("[yellow]Temporal CLI not found on PATH. Skipping auto-start.[/yellow]")
+        return None
 
 
 @app.command()
@@ -117,12 +128,31 @@ def dev(
 
         import uvicorn
 
+        # Ensure local src/ is importable for app modules
+        try:
+            import sys
+
+            src_dir = Path.cwd() / "src"
+            if src_dir.exists() and str(src_dir) not in sys.path:
+                sys.path.insert(0, str(src_dir))
+        except Exception:
+            pass
+
+        # Prefer configured app path, but fall back to main.py if present for backwards compatibility
+        main_app_path = Path.cwd() / "main.py"
+        if main_app_path.exists():
+            app_path = "main:app"
+            factory = False
+        else:
+            app_path = config.server.app
+            factory = config.server.factory
+
         uvicorn.run(
-            "main:app" if Path("main.py").exists() else "olive.server.app:create_app",
+            app_path,
             host=host,
             port=port,
             reload=reload,
-            factory=not Path("main.py").exists(),
+            factory=factory,
         )
 
     except KeyboardInterrupt:
@@ -188,11 +218,22 @@ def serve(
 
         import uvicorn
 
+        # Ensure local src/ is importable for app modules
+        try:
+            import sys
+
+            src_dir = Path.cwd() / "src"
+            if src_dir.exists() and str(src_dir) not in sys.path:
+                sys.path.insert(0, str(src_dir))
+        except Exception:
+            pass
+
+        app_path = config.server.app
         uvicorn.run(
-            "main:app" if Path("main.py").exists() else "olive.server.app:create_app",
+            app_path,
             host=host,
             port=port,
-            factory=not Path("main.py").exists(),
+            factory=config.server.factory,
         )
 
     except KeyboardInterrupt:

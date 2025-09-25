@@ -1,6 +1,7 @@
 """Olive client implementation."""
 
 import types
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import httpx
@@ -163,6 +164,115 @@ class OliveClient:
                 args_schema=ArgsSchema,
             )
 
+            langchain_tools.append(tool)
+
+        return langchain_tools
+
+    async def as_langchain_tools_injecting(
+        self,
+        context_provider: Callable[[Any | None], Mapping[str, Any]] | None = None,
+        tool_names: list[str] | None = None,
+    ) -> list[StructuredTool]:
+        """
+        Convert Olive tools to LangChain tools and auto-inject context values into declared injections.
+
+        Args:
+            context_provider: Callable that receives LangChain RunnableConfig (or None) and returns
+                              a mapping (e.g., config.configurable) used for injection.
+            tool_names: Optional list of tool names to include.
+        """
+        tools_info = await self.get_tools()
+        if tool_names:
+            tools_info = [t for t in tools_info if t["name"] in tool_names]
+
+        langchain_tools: list[StructuredTool] = []
+
+        for tool_info in tools_info:
+            tool_name = tool_info["name"]
+
+            # Build args schema excluding injected params (already excluded by server schema)
+            properties = tool_info.get("input_schema", {}).get("properties", {})
+            required = tool_info.get("input_schema", {}).get("required", [])
+
+            field_definitions = {}
+            for field_name, field_info in properties.items():
+                field_type = Any
+                if field_info.get("type") == "string":
+                    field_type = str
+                elif field_info.get("type") == "integer":
+                    field_type = int
+                elif field_info.get("type") == "number":
+                    field_type = float
+                elif field_info.get("type") == "boolean":
+                    field_type = bool
+                elif field_info.get("type") == "array":
+                    field_type = list[Any]
+                elif field_info.get("type") == "object":
+                    field_type = dict[str, Any]
+
+                if field_name not in required:
+                    if "default" in field_info:
+                        field_definitions[field_name] = (field_type, field_info["default"])
+                    else:
+                        field_definitions[field_name] = (field_type | None, None)
+                else:
+                    field_definitions[field_name] = (field_type, ...)
+
+            ArgsSchema = create_model(f"{tool_name}_args", **field_definitions)
+
+            injections = tool_info.get("injections", [])
+
+            async def bound_acall(__tool_name: str = tool_name, __injections=injections, **kwargs: Any) -> Any:
+                # Merge injected values
+                final_args = dict(kwargs)
+                cfg_map: Mapping[str, Any] = {}
+                # best-effort: try to access config via contextvar on LCEL; fallback to None
+                # LangChain tool coroutine receives only **kwargs; LCEL passes config at higher layer.
+                # We expose a companion .ainvoke via RunnableLambda elsewhere if needed.
+                if context_provider is not None:
+                    try:
+                        # Import lazily to avoid hard dep at import time
+                        from langchain_core.runnables.config import get_config
+
+                        cfg = get_config()
+                    except Exception:
+                        cfg = None
+                    cfg_map = context_provider(cfg) or {}
+
+                for inj in __injections:
+                    param = inj.get("param")
+                    config_key = inj.get("config_key")
+                    required = bool(inj.get("required", True))
+                    if param not in final_args:
+                        value = cfg_map.get(config_key)
+                        if value is None and required:
+                            raise ValueError(f"Missing required injected value '{config_key}' for param '{param}'")
+                        if value is not None:
+                            final_args[param] = value
+
+                return await self.call_tool(__tool_name, final_args)
+
+            def bound_call(__tool_name: str = tool_name, __injections=injections, **kwargs: Any) -> Any:
+                import asyncio
+
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                async def _runner():
+                    return await bound_acall(__tool_name=__tool_name, __injections=__injections, **kwargs)
+
+                return loop.run_until_complete(_runner())
+
+            tool = StructuredTool(
+                name=tool_name,
+                description=tool_info["description"],
+                func=bound_call,
+                coroutine=bound_acall,
+                args_schema=ArgsSchema,
+            )
             langchain_tools.append(tool)
 
         return langchain_tools

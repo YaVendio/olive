@@ -41,6 +41,17 @@ async def list_tools() -> list[dict[str, Any]]:
                 "retry_policy": getattr(tool_info, "retry_policy", {"max_attempts": 3}),
             }
 
+        # Add injection metadata so clients can auto-inject from context
+        if getattr(tool_info, "injections", None):
+            tool_data["injections"] = [
+                {
+                    "param": inj.param,
+                    "config_key": inj.config_key,
+                    "required": inj.required,
+                }
+                for inj in tool_info.injections
+            ]
+
         tools.append(tool_data)
     return tools
 

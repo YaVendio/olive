@@ -122,7 +122,7 @@ async def test_temporal_worker_get_client():
 
         assert worker._client == mock_client
         assert client == mock_client
-        mock_connect.assert_called_once_with(config.temporal.address, namespace=config.temporal.namespace)
+        mock_connect.assert_called_once_with(target_host=config.temporal.address, namespace=config.temporal.namespace)
 
 
 @pytest.mark.asyncio

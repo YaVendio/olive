@@ -39,8 +39,8 @@ def olive_tool[T: Callable](
         tool_name = f.__name__
         tool_description = description or (f.__doc__ or "").strip().split("\n")[0] or f"Tool: {tool_name}"
 
-        # Extract schemas from type hints
-        input_schema, output_schema = extract_schema_from_function(f)
+        # Extract schemas and injections from type hints
+        input_schema, output_schema, injections = extract_schema_from_function(f)
 
         # Create tool info
         tool_info = ToolInfo(
@@ -51,6 +51,7 @@ def olive_tool[T: Callable](
             func=f,
             timeout_seconds=timeout_seconds,
             retry_policy=retry_policy or {"max_attempts": 3},
+            injections=injections,
         )
 
         # Register the tool

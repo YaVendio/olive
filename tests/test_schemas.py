@@ -35,7 +35,7 @@ def test_extract_simple_function_schema():
     def add(x: int, y: int) -> int:
         return x + y
 
-    input_schema, output_schema = extract_schema_from_function(add)
+    input_schema, output_schema, injections = extract_schema_from_function(add)
 
     # Check input schema
     assert input_schema["type"] == "object"
@@ -53,7 +53,7 @@ def test_extract_function_with_defaults():
     def greet(name: str, greeting: str = "Hello") -> str:
         return f"{greeting}, {name}!"
 
-    input_schema, output_schema = extract_schema_from_function(greet)
+    input_schema, output_schema, injections = extract_schema_from_function(greet)
 
     # Check required fields
     assert input_schema["required"] == ["name"]  # greeting has default
@@ -68,7 +68,7 @@ def test_extract_function_with_optional():
     def process(data: str, metadata: dict | None = None) -> dict:
         return {"data": data, "metadata": metadata}
 
-    input_schema, output_schema = extract_schema_from_function(process)
+    input_schema, output_schema, injections = extract_schema_from_function(process)
 
     # Check optional parameter
     assert input_schema["properties"]["metadata"]["type"] == "object"
@@ -84,9 +84,10 @@ def test_extract_function_no_type_hints():
     def mystery_function(x, y):
         return x + y
 
-    input_schema, output_schema = extract_schema_from_function(mystery_function)
+    input_schema, output_schema, injections = extract_schema_from_function(mystery_function)
 
     # Should handle gracefully with no type constraints
     assert input_schema["properties"]["x"] == {}
     assert input_schema["properties"]["y"] == {}
     assert output_schema == {}  # Any type
+    assert injections == []

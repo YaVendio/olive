@@ -98,7 +98,7 @@ uv pip install git+ssh://git@github.com/YaVendio/olive.git
 uv add git+ssh://git@github.com/YaVendio/olive.git
 
 # Instalar una versión específica
-uv add git+ssh://git@github.com/YaVendio/olive.git@v1.0.0
+uv add git+ssh://git@github.com/YaVendio/olive.git@v1.1.1
 ```
 
 ### Instalación desde el Código Fuente
@@ -208,6 +208,72 @@ respuesta = await agente.ainvoke({
 ```
 
 ## 🔧 Uso Avanzado
+
+### Inyección de Contexto (Annotated + Inject)
+
+Olive soporta declarar parámetros que deben ser inyectados desde el contexto en tiempo de ejecución usando `typing.Annotated` y el marcador `Inject`.
+
+- Los parámetros marcados con `Annotated[..., Inject("clave")]`:
+  - No aparecen en el esquema público del tool (no los ve el LLM)
+  - Se devuelven como metadatos `injections` en `GET /olive/tools`
+  - Se auto-completan en el cliente con valores provenientes de `config.configurable`
+
+Servidor (definición del tool):
+
+```python
+from typing import Annotated
+from olive import olive_tool, Inject
+
+@olive_tool(description="Cambiar nombre del asistente")
+def change_assistant_name(
+    name: str,
+    assistant_id: Annotated[str, Inject("assistant_id")],  # inyectado desde contexto
+) -> dict:
+    # ... implementar actualización remota ...
+    return {"ok": True}
+```
+
+Respuesta de `GET /olive/tools` (extracto):
+
+```json
+[
+  {
+    "name": "change_assistant_name",
+    "description": "Cambiar nombre del asistente",
+    "input_schema": {
+      "type": "object",
+      "properties": { "name": { "type": "string" } },
+      "required": ["name"]
+    },
+    "injections": [
+      {
+        "param": "assistant_id",
+        "config_key": "assistant_id",
+        "required": true
+      }
+    ]
+  }
+]
+```
+
+Cliente (inyectando desde `config.configurable`):
+
+```python
+from olive_client import OliveClient
+
+async with OliveClient("http://localhost:8000") as client:
+    tools = await client.as_langchain_tools_injecting(
+        context_provider=lambda cfg: (
+            cfg.configurable if hasattr(cfg, "configurable")
+            else (getattr(cfg, "get", None) and cfg.get("configurable") or {})
+        )
+    )
+    # 'assistant_id' se inyectará automáticamente; sólo pasas {"name": "Maia"}
+```
+
+Nota:
+
+- Valores de infraestructura como URLs o API keys del servidor pertenecen al entorno del servidor (variables de entorno) y no se inyectan desde el contexto del agente.
 
 ### Herramientas con Configuración Temporal Personalizada
 
@@ -766,7 +832,7 @@ uvicorn olive.server.app:app --log-level debug
 
 1. Actualizar versión en `pyproject.toml`
 2. Actualizar CHANGELOG.md
-3. Crear tag: `git tag v1.0.0`
+3. Crear tag: `git tag v1.1.1`
 4. Push: `git push origin main --tags`
 
 ## 📄 Licencia

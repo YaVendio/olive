@@ -88,24 +88,51 @@ def test_call_tool_with_temporal():
         _registry._tools.pop("temporal_test_tool", None)
 
 
-def test_temporal_cloud_not_implemented():
-    """Test that Temporal Cloud raises NotImplementedError."""
+@pytest.mark.asyncio
+async def test_temporal_cloud_connects(tmp_path, monkeypatch):
+    """Ensure Temporal Cloud configuration passes TLS and metadata."""
     from olive.config import OliveConfig, TemporalConfig
     from olive.temporal.worker import TemporalWorker
 
-    # Create config with cloud settings
-    config = OliveConfig(temporal=TemporalConfig(cloud_namespace="test-ns", cloud_api_key="test-key"))
+    # Prepare fake TLS files
+    cert_path = tmp_path / "client.pem"
+    key_path = tmp_path / "client-key.pem"
+    ca_path = tmp_path / "server-ca.pem"
+    cert_path.write_text("cert")
+    key_path.write_text("key")
+    ca_path.write_text("ca")
+
+    config = OliveConfig(
+        temporal=TemporalConfig(
+            address="cloud.temporal.io:7233",
+            namespace="default",
+            cloud_namespace="prod.namespace",
+            cloud_api_key="api-key",
+            client_cert_path=str(cert_path),
+            client_key_path=str(key_path),
+            server_root_ca_path=str(ca_path),
+            server_name="prod.temporal.io",
+        )
+    )
+
+    captured_kwargs = {}
+
+    async def fake_connect(**kwargs):
+        captured_kwargs.update(kwargs)
+        return mock.Mock()
+
+    monkeypatch.setattr("olive.temporal.worker.Client.connect", fake_connect)
 
     worker = TemporalWorker(config)
+    await worker._get_client()
 
-    # Try to get client which should raise
-    async def test_cloud():
-        with pytest.raises(NotImplementedError, match="Temporal Cloud support coming soon"):
-            await worker._get_client()
-
-    # Run the async test
-
-    asyncio.run(test_cloud())
+    assert captured_kwargs["target_host"] == "cloud.temporal.io:7233"
+    assert captured_kwargs["namespace"] == "default"
+    assert "tls" in captured_kwargs
+    tls = captured_kwargs["tls"]
+    assert tls.domain == "prod.temporal.io"
+    assert captured_kwargs["rpc_metadata"]["authorization"] == "Bearer api-key"
+    assert captured_kwargs["rpc_metadata"]["temporal-namespace"] == "prod.namespace"
 
 
 def test_worker_thread_target():

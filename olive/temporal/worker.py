@@ -3,9 +3,11 @@
 import asyncio
 import concurrent.futures
 import threading
+from pathlib import Path
 from typing import Any
 
 from temporalio.client import Client
+from temporalio.service import TLSConfig
 from temporalio.worker import Worker
 
 from olive.config import OliveConfig
@@ -26,15 +28,51 @@ class TemporalWorker:
 
     async def _get_client(self) -> Client:
         """Get or create Temporal client."""
-        if self._client is None:
-            if self.config.temporal.is_cloud:
-                # TODO: Add cloud support
-                raise NotImplementedError("Temporal Cloud support coming soon!")
-            else:
-                self._client = await Client.connect(
-                    self.config.temporal.address,
-                    namespace=self.config.temporal.namespace,
-                )
+        if self._client is not None:
+            return self._client
+
+        temporal_config = self.config.temporal
+
+        tls_config: TLSConfig | None = None
+        if temporal_config.client_cert_path and temporal_config.client_key_path:
+            cert_path = Path(temporal_config.client_cert_path)
+            key_path = Path(temporal_config.client_key_path)
+
+            if not cert_path.exists():
+                raise FileNotFoundError(f"Temporal client certificate not found: {cert_path}")
+            if not key_path.exists():
+                raise FileNotFoundError(f"Temporal client key not found: {key_path}")
+
+            server_root_ca = None
+            if temporal_config.server_root_ca_path:
+                ca_path = Path(temporal_config.server_root_ca_path)
+                if not ca_path.exists():
+                    raise FileNotFoundError(f"Temporal server root CA not found: {ca_path}")
+                server_root_ca = ca_path.read_bytes()
+
+            tls_config = TLSConfig(
+                client_cert=cert_path.read_bytes(),
+                client_private_key=key_path.read_bytes(),
+                server_root_ca_cert=server_root_ca,
+                domain=temporal_config.server_name,
+            )
+
+        connect_kwargs: dict[str, Any] = {
+            "target_host": temporal_config.address,
+            "namespace": temporal_config.namespace,
+        }
+
+        if tls_config is not None:
+            connect_kwargs["tls"] = tls_config
+
+        # Temporal Cloud requires API key auth; use data plane address with tls.
+        if temporal_config.is_cloud and temporal_config.cloud_api_key:
+            connect_kwargs.setdefault("rpc_metadata", {})
+            connect_kwargs["rpc_metadata"]["authorization"] = f"Bearer {temporal_config.cloud_api_key}"
+            if temporal_config.cloud_namespace:
+                connect_kwargs["rpc_metadata"].setdefault("temporal-namespace", temporal_config.cloud_namespace)
+
+        self._client = await Client.connect(**connect_kwargs)
         return self._client
 
     async def _run_worker(self):

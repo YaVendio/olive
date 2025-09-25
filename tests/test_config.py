@@ -18,6 +18,10 @@ def test_temporal_config_defaults():
     assert config.task_queue == "olive-tools"
     assert config.cloud_namespace is None
     assert config.cloud_api_key is None
+    assert config.client_cert_path is None
+    assert config.client_key_path is None
+    assert config.server_root_ca_path is None
+    assert config.server_name is None
 
 
 def test_temporal_config_is_cloud():
@@ -120,6 +124,10 @@ def test_olive_config_from_env():
             "OLIVE_TEMPORAL_NAMESPACE": "env-ns",
             "OLIVE_TEMPORAL_CLOUD_NAMESPACE": "cloud-ns",
             "OLIVE_TEMPORAL_CLOUD_API_KEY": "cloud-key",
+            "OLIVE_TEMPORAL_CLIENT_CERT_PATH": "/tmp/cert.pem",
+            "OLIVE_TEMPORAL_CLIENT_KEY_PATH": "/tmp/key.pem",
+            "OLIVE_TEMPORAL_SERVER_ROOT_CA_PATH": "/tmp/ca.pem",
+            "OLIVE_TEMPORAL_SERVER_NAME": "temporal.example.com",
             "OLIVE_SERVER_HOST": "0.0.0.0",
             "OLIVE_SERVER_PORT": "8080",
             "OLIVE_TOOLS_DEFAULT_TIMEOUT": "900",
@@ -132,6 +140,10 @@ def test_olive_config_from_env():
         assert config.temporal.namespace == "env-ns"
         assert config.temporal.cloud_namespace == "cloud-ns"
         assert config.temporal.cloud_api_key == "cloud-key"
+        assert config.temporal.client_cert_path == "/tmp/cert.pem"
+        assert config.temporal.client_key_path == "/tmp/key.pem"
+        assert config.temporal.server_root_ca_path == "/tmp/ca.pem"
+        assert config.temporal.server_name == "temporal.example.com"
         assert config.server.host == "0.0.0.0"
         assert config.server.port == 8080
         assert config.tools.default_timeout == 900
@@ -157,6 +169,10 @@ def test_olive_config_merge_with_env_all_vars():
             "OLIVE_TEMPORAL_TASK_QUEUE": "env-queue",
             "OLIVE_TEMPORAL_CLOUD_NAMESPACE": "cloud-ns",
             "OLIVE_TEMPORAL_CLOUD_API_KEY": "cloud-key",
+            "OLIVE_TEMPORAL_CLIENT_CERT_PATH": "/tmp/cert.pem",
+            "OLIVE_TEMPORAL_CLIENT_KEY_PATH": "/tmp/key.pem",
+            "OLIVE_TEMPORAL_SERVER_ROOT_CA_PATH": "/tmp/ca.pem",
+            "OLIVE_TEMPORAL_SERVER_NAME": "temporal.example.com",
             "OLIVE_SERVER_HOST": "127.0.0.1",
             "OLIVE_SERVER_PORT": "9000",
             "OLIVE_TOOLS_DEFAULT_TIMEOUT": "1200",
@@ -170,6 +186,10 @@ def test_olive_config_merge_with_env_all_vars():
         assert result.temporal.task_queue == "env-queue"
         assert result.temporal.cloud_namespace == "cloud-ns"
         assert result.temporal.cloud_api_key == "cloud-key"
+        assert result.temporal.client_cert_path == "/tmp/cert.pem"
+        assert result.temporal.client_key_path == "/tmp/key.pem"
+        assert result.temporal.server_root_ca_path == "/tmp/ca.pem"
+        assert result.temporal.server_name == "temporal.example.com"
         assert result.server.host == "127.0.0.1"
         assert result.server.port == 9000
         assert result.tools.default_timeout == 1200

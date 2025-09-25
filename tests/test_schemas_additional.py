@@ -45,11 +45,11 @@ def test_python_type_to_json_schema_union_complex():
     """Test handling of complex union types."""
     # Union with more than 2 types (not Optional)
     schema = python_type_to_json_schema(str | int | float)
-    assert schema == {"type": "object"}
+    assert schema == {"anyOf": [{"type": "string"}, {"type": "integer"}, {"type": "number"}]}
 
     # Union with non-None types
     schema = python_type_to_json_schema(str | int)
-    assert schema == {"type": "object"}
+    assert schema == {"anyOf": [{"type": "string"}, {"type": "integer"}]}
 
 
 def test_python_type_to_json_schema_nested_optional():
@@ -87,22 +87,28 @@ def test_python_type_to_json_schema_tuple():
     """Test handling of tuple types."""
     # Plain tuple - not in basic types list, so returns object
     schema = python_type_to_json_schema(tuple)
-    assert schema == {"type": "object"}
+    assert schema == {"type": "array"}
 
     # Typed tuple - has __origin__ but not handled specially, so returns object
     schema = python_type_to_json_schema(tuple[int, str])
-    assert schema == {"type": "object"}
+    assert schema == {
+        "type": "array",
+        "items": [
+            {"type": "integer"},
+            {"type": "string"},
+        ],
+    }
 
 
 def test_python_type_to_json_schema_set():
     """Test handling of set types."""
     # Plain set - not in basic types list, so returns object
     schema = python_type_to_json_schema(set)
-    assert schema == {"type": "object"}
+    assert schema == {"type": "array"}
 
     # Typed set - has __origin__ but not handled specially, so returns object
     schema = python_type_to_json_schema(set[int])
-    assert schema == {"type": "object"}
+    assert schema == {"type": "array", "items": {"type": "integer"}}
 
 
 def test_python_type_to_json_schema_bytes():
@@ -122,8 +128,17 @@ def test_python_type_to_json_schema_complex_nested():
     """Test handling of complex nested types."""
     # Nested dict
     schema = python_type_to_json_schema(dict[str, list[int]])
-    assert schema == {"type": "object"}
+    assert schema == {
+        "type": "object",
+        "additionalProperties": {"type": "array", "items": {"type": "integer"}},
+    }
 
     # Nested list - list with dict items
     schema = python_type_to_json_schema(list[dict[str, Any]])
-    assert schema == {"type": "array", "items": {"type": "object"}}
+    assert schema == {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "additionalProperties": {},
+        },
+    }

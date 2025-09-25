@@ -18,6 +18,12 @@ class TemporalConfig(BaseModel):
     cloud_namespace: str | None = Field(default=None, description="Temporal Cloud namespace")
     cloud_api_key: str | None = Field(default=None, description="Temporal Cloud API key")
 
+    # TLS configuration
+    client_cert_path: str | None = Field(default=None, description="Path to TLS client certificate")
+    client_key_path: str | None = Field(default=None, description="Path to TLS client private key")
+    server_root_ca_path: str | None = Field(default=None, description="Path to Temporal server root CA certificate")
+    server_name: str | None = Field(default=None, description="Override server name for TLS verification")
+
     @property
     def is_cloud(self) -> bool:
         """Check if using Temporal Cloud."""
@@ -30,6 +36,10 @@ class ServerConfig(BaseModel):
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")
     reload: bool = Field(default=True, description="Enable auto-reload in dev mode")
+    # Import path for FastAPI app or factory, e.g. "app.main:app" or
+    # "olive.server.app:create_app" when using a factory
+    app: str = Field(default="olive.server.app:create_app", description="Uvicorn app import path")
+    factory: bool = Field(default=True, description="Whether the app import is a factory")
 
 
 class ToolsConfig(BaseModel):
@@ -85,12 +95,25 @@ class OliveConfig(BaseModel):
             config.temporal.cloud_namespace = cloud_ns
         if cloud_key := os.getenv("OLIVE_TEMPORAL_CLOUD_API_KEY"):
             config.temporal.cloud_api_key = cloud_key
+        if cert_path := os.getenv("OLIVE_TEMPORAL_CLIENT_CERT_PATH"):
+            config.temporal.client_cert_path = cert_path
+        if key_path := os.getenv("OLIVE_TEMPORAL_CLIENT_KEY_PATH"):
+            config.temporal.client_key_path = key_path
+        if ca_path := os.getenv("OLIVE_TEMPORAL_SERVER_ROOT_CA_PATH"):
+            config.temporal.server_root_ca_path = ca_path
+        if server_name := os.getenv("OLIVE_TEMPORAL_SERVER_NAME"):
+            config.temporal.server_name = server_name
 
         # Server settings
         if host := os.getenv("OLIVE_SERVER_HOST"):
             config.server.host = host
         if port := os.getenv("OLIVE_SERVER_PORT"):
             config.server.port = int(port)
+        if app := os.getenv("OLIVE_SERVER_APP"):
+            config.server.app = app
+        if factory := os.getenv("OLIVE_SERVER_FACTORY"):
+            # Accept common truthy strings
+            config.server.factory = factory.lower() in {"1", "true", "yes"}
 
         # Tools settings
         if timeout := os.getenv("OLIVE_TOOLS_DEFAULT_TIMEOUT"):
@@ -115,10 +138,22 @@ class OliveConfig(BaseModel):
             self.temporal.cloud_namespace = env_config.temporal.cloud_namespace
         if os.getenv("OLIVE_TEMPORAL_CLOUD_API_KEY"):
             self.temporal.cloud_api_key = env_config.temporal.cloud_api_key
+        if os.getenv("OLIVE_TEMPORAL_CLIENT_CERT_PATH"):
+            self.temporal.client_cert_path = env_config.temporal.client_cert_path
+        if os.getenv("OLIVE_TEMPORAL_CLIENT_KEY_PATH"):
+            self.temporal.client_key_path = env_config.temporal.client_key_path
+        if os.getenv("OLIVE_TEMPORAL_SERVER_ROOT_CA_PATH"):
+            self.temporal.server_root_ca_path = env_config.temporal.server_root_ca_path
+        if os.getenv("OLIVE_TEMPORAL_SERVER_NAME"):
+            self.temporal.server_name = env_config.temporal.server_name
         if os.getenv("OLIVE_SERVER_HOST"):
             self.server.host = env_config.server.host
         if os.getenv("OLIVE_SERVER_PORT"):
             self.server.port = env_config.server.port
+        if os.getenv("OLIVE_SERVER_APP"):
+            self.server.app = env_config.server.app
+        if os.getenv("OLIVE_SERVER_FACTORY"):
+            self.server.factory = env_config.server.factory
         if os.getenv("OLIVE_TOOLS_DEFAULT_TIMEOUT"):
             self.tools.default_timeout = env_config.tools.default_timeout
         if os.getenv("OLIVE_TOOLS_DEFAULT_RETRY_ATTEMPTS"):

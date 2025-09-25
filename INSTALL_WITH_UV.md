@@ -50,7 +50,7 @@ Download the latest wheel file from [GitHub Releases](https://github.com/YaVendi
 ```bash
 # Download the wheel file from the latest release
 # Then install it locally
-uv pip install path/to/olive-1.0.0-py3-none-any.whl
+uv pip install path/to/olive-1.1.1-py3-none-any.whl
 ```
 
 ### Method 3: In pyproject.toml
@@ -65,7 +65,7 @@ dependencies = [
 
 # Or for a specific version tag
 dependencies = [
-    "olive @ git+ssh://git@github.com/YaVendio/olive.git@v1.0.0",
+    "olive @ git+ssh://git@github.com/YaVendio/olive.git@v1.1.1",
 ]
 ```
 
@@ -117,7 +117,7 @@ cd my-project
 uv add git+ssh://git@github.com/YaVendio/olive.git
 
 # Or from a specific tag
-uv add git+ssh://git@github.com/YaVendio/olive.git@v1.0.0
+uv add git+ssh://git@github.com/YaVendio/olive.git@v1.1.1
 
 # Or from GitHub Package Registry (after configuring authentication)
 uv add olive --index-url https://pypi.pkg.github.com/YaVendio

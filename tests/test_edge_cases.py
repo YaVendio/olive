@@ -14,7 +14,7 @@ def test_extract_schema_with_self_parameter():
 
     # Extract schema from bound method
     instance = MyClass()
-    input_schema, output_schema = extract_schema_from_function(instance.method)
+    input_schema, output_schema, injections = extract_schema_from_function(instance.method)
 
     # Should only have 'x' parameter, not 'self'
     assert list(input_schema["properties"].keys()) == ["x"]
@@ -43,7 +43,8 @@ def test_python_type_bare_dict():
 def test_python_type_dict_with_origin():
     """Test conversion of dict with __origin__ attribute."""
     schema = python_type_to_json_schema(dict[str, int])
-    assert schema == {"type": "object"}
+    assert schema["type"] == "object"
+    assert schema["additionalProperties"] == {"type": "integer"}
 
 
 def test_python_type_fallback_to_object():
