@@ -1,6 +1,6 @@
 [project]
 name = "olive"
-version = "1.1.1"
+version = "1.1.2"
 description = "Minimal framework for exposing FastAPI endpoints as LangChain tools with Temporal"
 authors = [{ name = "YaVendio", email = "t@yavendio.com" }]
 readme = "README.md"
@@ -43,6 +43,7 @@ dev = [
 
 [project.scripts]
 olive = "olive.cli:main"
+
 
 [build-system]
 requires = ["hatchling"]

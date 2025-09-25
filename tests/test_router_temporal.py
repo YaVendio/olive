@@ -104,7 +104,7 @@ async def test_temporal_cloud_connects(tmp_path, monkeypatch):
 
     config = OliveConfig(
         temporal=TemporalConfig(
-            address="cloud.temporal.io:7233",
+            address="fallback:7233",
             namespace="default",
             cloud_namespace="prod.namespace",
             cloud_api_key="api-key",
@@ -112,6 +112,7 @@ async def test_temporal_cloud_connects(tmp_path, monkeypatch):
             client_key_path=str(key_path),
             server_root_ca_path=str(ca_path),
             server_name="prod.temporal.io",
+            namespace_endpoint="cloud.temporal.io:7233",
         )
     )
 

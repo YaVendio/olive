@@ -11,6 +11,7 @@ class TemporalConfig(BaseModel):
     """Temporal configuration."""
 
     address: str = Field(default="localhost:7233", description="Temporal server address")
+    namespace_endpoint: str | None = Field(default=None, description="Temporal Cloud namespace endpoint")
     namespace: str = Field(default="default", description="Temporal namespace")
     task_queue: str = Field(default="olive-tools", description="Task queue name")
 
@@ -85,6 +86,9 @@ class OliveConfig(BaseModel):
         # Temporal settings
         if address := os.getenv("OLIVE_TEMPORAL_ADDRESS"):
             config.temporal.address = address
+        if namespace_endpoint := os.getenv("OLIVE_TEMPORAL_NAMESPACE_ENDPOINT"):
+            config.temporal.namespace_endpoint = namespace_endpoint
+            config.temporal.address = namespace_endpoint
         if namespace := os.getenv("OLIVE_TEMPORAL_NAMESPACE"):
             config.temporal.namespace = namespace
         if task_queue := os.getenv("OLIVE_TEMPORAL_TASK_QUEUE"):
@@ -129,6 +133,9 @@ class OliveConfig(BaseModel):
 
         # Only override if env vars are set
         if os.getenv("OLIVE_TEMPORAL_ADDRESS"):
+            self.temporal.address = env_config.temporal.address
+        if os.getenv("OLIVE_TEMPORAL_NAMESPACE_ENDPOINT"):
+            self.temporal.namespace_endpoint = env_config.temporal.namespace_endpoint
             self.temporal.address = env_config.temporal.address
         if os.getenv("OLIVE_TEMPORAL_NAMESPACE"):
             self.temporal.namespace = env_config.temporal.namespace

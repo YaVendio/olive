@@ -4,7 +4,7 @@
 from olive.decorator import olive_tool
 from olive.schemas import Inject
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 __all__ = ["olive_tool", "setup_olive", "create_app", "Inject"]
 
 

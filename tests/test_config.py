@@ -14,6 +14,7 @@ def test_temporal_config_defaults():
     """Test TemporalConfig default values."""
     config = TemporalConfig()
     assert config.address == "localhost:7233"
+    assert config.namespace_endpoint is None
     assert config.namespace == "default"
     assert config.task_queue == "olive-tools"
     assert config.cloud_namespace is None
@@ -121,6 +122,7 @@ def test_olive_config_from_env():
         os.environ,
         {
             "OLIVE_TEMPORAL_ADDRESS": "env:7233",
+            "OLIVE_TEMPORAL_NAMESPACE_ENDPOINT": "env-endpoint:7233",
             "OLIVE_TEMPORAL_NAMESPACE": "env-ns",
             "OLIVE_TEMPORAL_CLOUD_NAMESPACE": "cloud-ns",
             "OLIVE_TEMPORAL_CLOUD_API_KEY": "cloud-key",
@@ -136,7 +138,8 @@ def test_olive_config_from_env():
     ):
         config = OliveConfig.from_env()
 
-        assert config.temporal.address == "env:7233"
+        assert config.temporal.address == "env-endpoint:7233"
+        assert config.temporal.namespace_endpoint == "env-endpoint:7233"
         assert config.temporal.namespace == "env-ns"
         assert config.temporal.cloud_namespace == "cloud-ns"
         assert config.temporal.cloud_api_key == "cloud-key"
@@ -165,6 +168,7 @@ def test_olive_config_merge_with_env_all_vars():
         os.environ,
         {
             "OLIVE_TEMPORAL_ADDRESS": "env:7233",
+            "OLIVE_TEMPORAL_NAMESPACE_ENDPOINT": "env-endpoint:7233",
             "OLIVE_TEMPORAL_NAMESPACE": "env-ns",
             "OLIVE_TEMPORAL_TASK_QUEUE": "env-queue",
             "OLIVE_TEMPORAL_CLOUD_NAMESPACE": "cloud-ns",
@@ -181,7 +185,8 @@ def test_olive_config_merge_with_env_all_vars():
     ):
         result = config.merge_with_env()
 
-        assert result.temporal.address == "env:7233"
+        assert result.temporal.address == "env-endpoint:7233"
+        assert result.temporal.namespace_endpoint == "env-endpoint:7233"
         assert result.temporal.namespace == "env-ns"
         assert result.temporal.task_queue == "env-queue"
         assert result.temporal.cloud_namespace == "cloud-ns"

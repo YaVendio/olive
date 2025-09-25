@@ -57,8 +57,10 @@ class TemporalWorker:
                 domain=temporal_config.server_name,
             )
 
+        address = temporal_config.namespace_endpoint or temporal_config.address
+
         connect_kwargs: dict[str, Any] = {
-            "target_host": temporal_config.address,
+            "target_host": address,
             "namespace": temporal_config.namespace,
         }
 
