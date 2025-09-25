@@ -136,6 +136,43 @@ async def test_temporal_cloud_connects(tmp_path, monkeypatch):
     assert captured_kwargs["rpc_metadata"]["temporal-namespace"] == "prod.namespace"
 
 
+@pytest.mark.asyncio
+async def test_temporal_cloud_connects_no_api_key(tmp_path, monkeypatch):
+    """Ensure namespace_endpoint without API key still sets metadata."""
+    from olive.config import OliveConfig, TemporalConfig
+    from olive.temporal.worker import TemporalWorker
+
+    cert_path = tmp_path / "client.pem"
+    key_path = tmp_path / "client-key.pem"
+    cert_path.write_text("cert")
+    key_path.write_text("key")
+
+    config = OliveConfig(
+        temporal=TemporalConfig(
+            namespace="prod",
+            client_cert_path=str(cert_path),
+            client_key_path=str(key_path),
+            namespace_endpoint="cloud.temporal.io:7233",
+        )
+    )
+
+    captured_kwargs = {}
+
+    async def fake_connect(**kwargs):
+        captured_kwargs.update(kwargs)
+        return mock.Mock()
+
+    monkeypatch.setattr("olive.temporal.worker.Client.connect", fake_connect)
+
+    worker = TemporalWorker(config)
+    await worker._get_client()
+
+    assert captured_kwargs["target_host"] == "cloud.temporal.io:7233"
+    assert captured_kwargs["namespace"] == "prod"
+    assert captured_kwargs["rpc_metadata"]["temporal-namespace"] == "prod"
+    assert "authorization" not in captured_kwargs.get("rpc_metadata", {})
+
+
 def test_worker_thread_target():
     """Test the worker thread target method."""
     from olive.config import OliveConfig

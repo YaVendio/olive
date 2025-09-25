@@ -28,6 +28,8 @@ class TemporalConfig(BaseModel):
     @property
     def is_cloud(self) -> bool:
         """Check if using Temporal Cloud."""
+        if self.namespace_endpoint:
+            return True
         return bool(self.cloud_namespace and self.cloud_api_key)
 
 

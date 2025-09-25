@@ -98,7 +98,7 @@ uv pip install git+ssh://git@github.com/YaVendio/olive.git
 uv add git+ssh://git@github.com/YaVendio/olive.git
 
 # Instalar una versión específica
-uv add git+ssh://git@github.com/YaVendio/olive.git@v1.1.2
+uv add git+ssh://git@github.com/YaVendio/olive.git@v1.1.3
 ```
 
 ### Instalación desde el Código Fuente
@@ -832,7 +832,7 @@ uvicorn olive.server.app:app --log-level debug
 
 1. Actualizar versión en `pyproject.toml`
 2. Actualizar CHANGELOG.md
-3. Crear tag: `git tag v1.1.2`
+3. Crear tag: `git tag v1.1.3`
 4. Push: `git push origin main --tags`
 
 ## 📄 Licencia

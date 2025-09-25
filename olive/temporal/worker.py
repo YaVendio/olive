@@ -73,6 +73,9 @@ class TemporalWorker:
             connect_kwargs["rpc_metadata"]["authorization"] = f"Bearer {temporal_config.cloud_api_key}"
             if temporal_config.cloud_namespace:
                 connect_kwargs["rpc_metadata"].setdefault("temporal-namespace", temporal_config.cloud_namespace)
+        elif temporal_config.namespace_endpoint:
+            connect_kwargs.setdefault("rpc_metadata", {})
+            connect_kwargs["rpc_metadata"].setdefault("temporal-namespace", temporal_config.namespace)
 
         self._client = await Client.connect(**connect_kwargs)
         return self._client
