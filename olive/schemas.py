@@ -3,7 +3,7 @@
 import inspect
 import types
 from collections.abc import Callable
-from typing import Any, Union, get_type_hints
+from typing import Annotated, Any, Union, get_args, get_origin, get_type_hints
 
 from pydantic import BaseModel, Field
 
@@ -20,6 +20,17 @@ class ToolInfo(BaseModel):
     # Temporal configuration (v1 mode)
     timeout_seconds: int = 300
     retry_policy: dict[str, Any] | None = None
+
+    # Context injections (parameters excluded from input_schema and filled from configurable)
+    injections: list["ToolInjection"] = Field(default_factory=list)
+
+
+class ToolInjection(BaseModel):
+    """Descriptor for parameters injected from runtime configurable context."""
+
+    param: str
+    config_key: str
+    required: bool = True
 
 
 class ToolCallRequest(BaseModel):
@@ -38,8 +49,34 @@ class ToolCallResponse(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
-def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Extract input and output schemas from a function's type hints."""
+class Inject(BaseModel):
+    """Marker used with typing.Annotated to declare context injection.
+
+    Example:
+        def tool(arg: int, assistant_id: Annotated[str, Inject(key="assistant_id")]): ...
+    """
+
+    key: str
+    required: bool = True
+
+
+def _parse_inject_annotation(py_type: Any) -> tuple[Any, ToolInjection | None]:
+    """If py_type is Annotated[..., Inject], return (base_type, ToolInjection)."""
+    origin = get_origin(py_type)
+    if origin is Annotated:
+        args = get_args(py_type)
+        if not args:
+            return py_type, None
+        base = args[0]
+        meta = args[1:]
+        for m in meta:
+            if isinstance(m, Inject):
+                return base, ToolInjection(param="", config_key=m.key, required=m.required)
+    return py_type, None
+
+
+def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[str, Any], list[ToolInjection]]:
+    """Extract input/output JSON schemas and injection metadata from function type hints."""
     # Get type hints
     hints = get_type_hints(func)
     sig = inspect.signature(func)
@@ -47,6 +84,7 @@ def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[s
     # Build input schema
     properties = {}
     required = []
+    injections: list[ToolInjection] = []
 
     for param_name, param in sig.parameters.items():
         if param_name == "self":
@@ -55,8 +93,16 @@ def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[s
         # Get type hint
         param_type = hints.get(param_name, Any)
 
+        # Check for Annotated[..., Inject]
+        base_type, inject_meta = _parse_inject_annotation(param_type)
+        if inject_meta is not None:
+            # Record injection and skip adding to input schema
+            inject_meta.param = param_name
+            injections.append(inject_meta)
+            continue
+
         # Convert Python type to JSON schema type
-        json_type = python_type_to_json_schema(param_type)
+        json_type = python_type_to_json_schema(base_type)
 
         properties[param_name] = json_type
 
@@ -74,7 +120,7 @@ def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[s
     return_type = hints.get("return", Any)
     output_schema = python_type_to_json_schema(return_type)
 
-    return input_schema, output_schema
+    return input_schema, output_schema, injections
 
 
 def python_type_to_json_schema(py_type: Any) -> dict[str, Any]:
@@ -82,48 +128,64 @@ def python_type_to_json_schema(py_type: Any) -> dict[str, Any]:
     # Handle basic types
     if py_type is str:
         return {"type": "string"}
-    elif py_type is int:
+    if py_type is int:
         return {"type": "integer"}
-    elif py_type is float:
+    if py_type is float:
         return {"type": "number"}
-    elif py_type is bool:
+    if py_type is bool:
         return {"type": "boolean"}
-    elif py_type is list or py_type is list:
+    if py_type in {list, tuple, set}:
         return {"type": "array"}
-    elif py_type is dict or py_type is dict:
+    if py_type is dict:
         return {"type": "object"}
-    elif py_type is Any:
+    if py_type is Any:
         return {}  # No schema constraint
-    elif py_type is type(None):
+    if py_type is type(None):
         return {"type": "null"}
 
-    # Handle generic types
-    origin = getattr(py_type, "__origin__", None)
-    if origin is list:
-        args = getattr(py_type, "__args__", ())
+    # Handle typing and collections generics
+    origin = get_origin(py_type) or getattr(py_type, "__origin__", None)
+    args = get_args(py_type) or getattr(py_type, "__args__", ())
+
+    if origin in {list, set}:
+        item_schema = python_type_to_json_schema(args[0]) if args else {}
+        schema: dict[str, Any] = {"type": "array"}
         if args:
-            return {"type": "array", "items": python_type_to_json_schema(args[0])}
-        return {"type": "array"}
-    elif origin is dict:
+            schema["items"] = item_schema
+        return schema
+
+    if origin is tuple:
+        schema: dict[str, Any] = {"type": "array"}
+        if args:
+            item_schemas = [python_type_to_json_schema(arg) for arg in args]
+            schema["items"] = item_schemas
+        return schema
+
+    if origin is dict:
+        # Only value type is relevant for JSON schema; keep lean schema when not provided
+        schema = {"type": "object"}
+        if len(args) > 1:
+            schema["additionalProperties"] = python_type_to_json_schema(args[1])
+        return schema
+
+    if origin is Union or isinstance(py_type, types.UnionType):
+        # Handle Optional[T] or union including None
+        union_args = args or getattr(py_type, "__args__", ())
+        if len(union_args) == 2 and type(None) in union_args:
+            non_none = next(t for t in union_args if t is not type(None))
+            schema = python_type_to_json_schema(non_none)
+            schema["nullable"] = True
+            return schema
+        # Generic union: allow any of the schemas
+        return {"anyOf": [python_type_to_json_schema(t) for t in union_args]}
+
+    # For Pydantic/BaseModel types, use object schema
+    if inspect.isclass(py_type) and issubclass(py_type, BaseModel):
+        return {"$ref": f"#/definitions/{py_type.__name__}"}
+
+    # For callables, use generic object
+    if callable(py_type):
         return {"type": "object"}
-    elif origin is Union:
-        args = getattr(py_type, "__args__", ())
-        # Handle Optional[T] (Union[T, None])
-        if len(args) == 2 and type(None) in args:
-            non_none_type = args[0] if args[1] is type(None) else args[1]
-            schema = python_type_to_json_schema(non_none_type)
-            schema["nullable"] = True
-            return schema
 
-    # Handle Python 3.10+ union syntax (e.g., dict | None)
-    if isinstance(py_type, types.UnionType):
-        args = getattr(py_type, "__args__", ())
-        # Handle Optional[T] (T | None)
-        if len(args) == 2 and type(None) in args:
-            non_none_type = args[0] if args[1] is type(None) else args[1]
-            schema = python_type_to_json_schema(non_none_type)
-            schema["nullable"] = True
-            return schema
-
-    # For complex types, just return object
+    # Default fallback for unknown types
     return {"type": "object"}

@@ -26,11 +26,11 @@ dev:
 
 # Run tests
 test:
-	uv run pytest tests/ -v
+	uv run python -m pytest tests/ -v
 
 # Run tests with coverage
 coverage:
-	uv run pytest tests/ --cov=olive --cov=olive_client --cov-report=term-missing --cov-report=html --cov-fail-under=100
+	uv run python -m pytest tests/ --cov=olive --cov=olive_client --cov-report=term-missing --cov-report=html --cov-fail-under=100
 
 # Run linter
 lint:
@@ -46,12 +46,7 @@ type-check:
 
 # Clean cache files
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".coverage" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	uv clean --all
 
 # Run example server
 run-example:

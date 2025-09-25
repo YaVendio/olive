@@ -12,7 +12,7 @@ def test_extract_schema_with_method():
             return {"x": x, "y": y}
 
     # Extract schema from unbound method to trigger self parameter handling
-    input_schema, output_schema = extract_schema_from_function(TestClass.method_with_self)
+    input_schema, output_schema, injections = extract_schema_from_function(TestClass.method_with_self)
 
     # Should not include 'self' in properties
     assert "self" not in input_schema["properties"]

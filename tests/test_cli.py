@@ -26,13 +26,13 @@ runner = CliRunner()
 
 def test_check_temporal_running():
     """Test Temporal server check."""
-    with mock.patch("httpx.get") as mock_get:
+    with mock.patch("socket.create_connection") as mock_conn:
         # Test success
-        mock_get.return_value.status_code = 200
+        mock_conn.return_value.__enter__.return_value = True
         assert check_temporal_running("localhost:7233") is True
 
         # Test failure
-        mock_get.side_effect = Exception("Connection error")
+        mock_conn.side_effect = Exception("Connection error")
         assert check_temporal_running("localhost:7233") is False
 
 

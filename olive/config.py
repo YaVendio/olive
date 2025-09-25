@@ -30,6 +30,10 @@ class ServerConfig(BaseModel):
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")
     reload: bool = Field(default=True, description="Enable auto-reload in dev mode")
+    # Import path for FastAPI app or factory, e.g. "app.main:app" or
+    # "olive.server.app:create_app" when using a factory
+    app: str = Field(default="olive.server.app:create_app", description="Uvicorn app import path")
+    factory: bool = Field(default=True, description="Whether the app import is a factory")
 
 
 class ToolsConfig(BaseModel):
@@ -91,6 +95,11 @@ class OliveConfig(BaseModel):
             config.server.host = host
         if port := os.getenv("OLIVE_SERVER_PORT"):
             config.server.port = int(port)
+        if app := os.getenv("OLIVE_SERVER_APP"):
+            config.server.app = app
+        if factory := os.getenv("OLIVE_SERVER_FACTORY"):
+            # Accept common truthy strings
+            config.server.factory = factory.lower() in {"1", "true", "yes"}
 
         # Tools settings
         if timeout := os.getenv("OLIVE_TOOLS_DEFAULT_TIMEOUT"):
@@ -119,6 +128,10 @@ class OliveConfig(BaseModel):
             self.server.host = env_config.server.host
         if os.getenv("OLIVE_SERVER_PORT"):
             self.server.port = env_config.server.port
+        if os.getenv("OLIVE_SERVER_APP"):
+            self.server.app = env_config.server.app
+        if os.getenv("OLIVE_SERVER_FACTORY"):
+            self.server.factory = env_config.server.factory
         if os.getenv("OLIVE_TOOLS_DEFAULT_TIMEOUT"):
             self.tools.default_timeout = env_config.tools.default_timeout
         if os.getenv("OLIVE_TOOLS_DEFAULT_RETRY_ATTEMPTS"):
