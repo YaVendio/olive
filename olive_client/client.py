@@ -52,13 +52,19 @@ class OliveClient:
         response.raise_for_status()
         return response.json()
 
-    async def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> Any:
+    async def call_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> Any:
         """
         Call a tool on the server.
 
         Args:
             tool_name: Name of the tool to call
             arguments: Arguments to pass to the tool
+            context: Runtime context for injection (e.g., assistant_id, phone_number)
 
         Returns:
             The result from the tool execution
@@ -69,9 +75,11 @@ class OliveClient:
         if arguments is None:
             arguments = {}
 
-        response = await self._client.post(
-            f"{self.base_url}/olive/tools/call", json={"tool_name": tool_name, "arguments": arguments}
-        )
+        payload: dict[str, Any] = {"tool_name": tool_name, "arguments": arguments}
+        if context:
+            payload["context"] = context
+
+        response = await self._client.post(f"{self.base_url}/olive/tools/call", json=payload)
         response.raise_for_status()
 
         data = response.json()
@@ -223,12 +231,8 @@ class OliveClient:
             injections = tool_info.get("injections", [])
 
             async def bound_acall(__tool_name: str = tool_name, __injections=injections, **kwargs: Any) -> Any:
-                # Merge injected values
-                final_args = dict(kwargs)
+                # Extract context for injection
                 cfg_map: Mapping[str, Any] = {}
-                # best-effort: try to access config via contextvar on LCEL; fallback to None
-                # LangChain tool coroutine receives only **kwargs; LCEL passes config at higher layer.
-                # We expose a companion .ainvoke via RunnableLambda elsewhere if needed.
                 if context_provider is not None:
                     try:
                         # Import lazily to avoid hard dep at import time
@@ -239,20 +243,10 @@ class OliveClient:
                         cfg = None
                     cfg_map = context_provider(cfg) or {}
 
-                for inj in __injections:
-                    param = inj.get("param")
-                    config_key = inj.get("config_key")
-                    required = bool(inj.get("required", True))
-                    if param not in final_args:
-                        value = cfg_map.get(config_key)
-                        if value is None and required:
-                            raise ValueError(f"Missing required injected value '{config_key}' for param '{param}'")
-                        if value is not None:
-                            final_args[param] = value
+                # Pass context to the server for server-side injection
+                return await self.call_tool(__tool_name, kwargs, context=dict(cfg_map) if cfg_map else None)
 
-                return await self.call_tool(__tool_name, final_args)
-
-            def bound_call(__tool_name: str = tool_name, __injections=injections, **kwargs: Any) -> Any:
+            def bound_call(__tool_name: str = tool_name, **kwargs: Any) -> Any:
                 import asyncio
 
                 try:
@@ -261,10 +255,7 @@ class OliveClient:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
-                async def _runner():
-                    return await bound_acall(__tool_name=__tool_name, __injections=__injections, **kwargs)
-
-                return loop.run_until_complete(_runner())
+                return loop.run_until_complete(bound_acall(__tool_name=__tool_name, **kwargs))
 
             tool = StructuredTool(
                 name=tool_name,

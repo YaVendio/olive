@@ -38,6 +38,10 @@ class ToolCallRequest(BaseModel):
 
     tool_name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
+    context: dict[str, Any] | None = Field(
+        default=None,
+        description="Runtime context for injection (e.g., assistant_id, phone_number)",
+    )
 
 
 class ToolCallResponse(BaseModel):

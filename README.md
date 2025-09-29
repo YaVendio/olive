@@ -218,6 +218,8 @@ Olive soporta declarar parámetros que deben ser inyectados desde el contexto en
   - Se devuelven como metadatos `injections` en `GET /olive/tools`
   - Se auto-completan en el cliente con valores provenientes de `config.configurable`
 
+**Nuevo en v1.2.0:** Inyección tanto desde `RunnableConfig` contextvar (cuando disponible) como desde campo `context` explícito en las llamadas HTTP, garantizando compatibilidad con `ToolNode` y otros mecanismos de invocación.
+
 Servidor (definición del tool):
 
 ```python
@@ -270,6 +272,8 @@ async with OliveClient("http://localhost:8000") as client:
     )
     # 'assistant_id' se inyectará automáticamente; sólo pasas {"name": "Maia"}
 ```
+
+La inyección funciona tanto si LangChain pasa `RunnableConfig` via contextvar (LCEL/ainvoke) como si no lo hace (`ToolNode`/coroutine). El cliente envía el contexto en el payload HTTP y el servidor lo fusiona con los argumentos del tool.
 
 Nota:
 

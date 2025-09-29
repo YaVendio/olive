@@ -65,9 +65,27 @@ async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
         return ToolCallResponse(success=False, error=f"Tool '{request.tool_name}' not found")
 
     try:
+        # Merge context into arguments for injection
+        final_args = dict(request.arguments)
+        if request.context:
+            # Inject context values for declared injections
+            for injection in tool_info.injections:
+                param = injection.param
+                config_key = injection.config_key
+                # Only inject if not already provided in arguments
+                if param not in final_args:
+                    value = request.context.get(config_key)
+                    if value is not None:
+                        final_args[param] = value
+                    elif injection.required:
+                        return ToolCallResponse(
+                            success=False,
+                            error=f"Missing required context value '{config_key}' for param '{param}'",
+                        )
+
         # Use Temporal if available (v1 mode)
         if _temporal_worker is not None:
-            result = await _temporal_worker.execute_tool(request.tool_name, request.arguments)
+            result = await _temporal_worker.execute_tool(request.tool_name, final_args)
             return ToolCallResponse(
                 success=True,
                 result=result,
@@ -80,9 +98,9 @@ async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
         # Otherwise use direct execution (v0 mode)
         func = tool_info.func
         if asyncio.iscoroutinefunction(func):
-            result = await func(**request.arguments)
+            result = await func(**final_args)
         else:
-            result = func(**request.arguments)
+            result = func(**final_args)
 
         return ToolCallResponse(success=True, result=result)
     except Exception as e:
