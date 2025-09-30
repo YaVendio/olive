@@ -81,8 +81,8 @@ def _parse_inject_annotation(py_type: Any) -> tuple[Any, ToolInjection | None]:
 
 def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[str, Any], list[ToolInjection]]:
     """Extract input/output JSON schemas and injection metadata from function type hints."""
-    # Get type hints
-    hints = get_type_hints(func)
+    # Get type hints with include_extras=True to preserve Annotated metadata
+    hints = get_type_hints(func, include_extras=True)
     sig = inspect.signature(func)
 
     # Build input schema
