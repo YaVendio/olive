@@ -9,7 +9,7 @@ from olive import __version__, run_dev
 
 def test_version():
     """Test version is defined."""
-    assert __version__ == "1.1.3"
+    assert __version__ == "1.2.2"
 
 
 def test_run_dev():
