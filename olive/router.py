@@ -59,12 +59,23 @@ async def list_tools() -> list[dict[str, Any]]:
 @router.post("/tools/call")
 async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
     """Call a registered Olive tool."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     # Get the tool
     tool_info = _registry.get(request.tool_name)
     if not tool_info:
         return ToolCallResponse(success=False, error=f"Tool '{request.tool_name}' not found")
 
     try:
+        logger.info(
+            "Olive tool call: name=%s context=%s injections=%s",
+            request.tool_name,
+            request.context,
+            [{"param": inj.param, "key": inj.config_key} for inj in tool_info.injections],
+        )
+
         # Merge context into arguments for injection
         final_args = dict(request.arguments)
         if request.context:
@@ -77,11 +88,19 @@ async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
                     value = request.context.get(config_key)
                     if value is not None:
                         final_args[param] = value
+                        logger.info("Injected %s=%s into tool %s", param, value, request.tool_name)
                     elif injection.required:
+                        logger.warning(
+                            "Missing required context key=%s for param=%s",
+                            config_key,
+                            param,
+                        )
                         return ToolCallResponse(
                             success=False,
                             error=f"Missing required context value '{config_key}' for param '{param}'",
                         )
+
+        logger.info("Final args for %s: %s", request.tool_name, list(final_args.keys()))
 
         # Use Temporal if available (v1 mode)
         if _temporal_worker is not None:
