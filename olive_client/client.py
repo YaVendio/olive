@@ -23,6 +23,7 @@ class OliveClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client = httpx.AsyncClient(timeout=timeout)
+        self._elevenlabs_context: dict[str, Any] | None = None  # Context for ElevenLabs tools
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -64,7 +65,8 @@ class OliveClient:
         Args:
             tool_name: Name of the tool to call
             arguments: Arguments to pass to the tool
-            context: Runtime context for injection (e.g., assistant_id, phone_number)
+            context: Runtime context for injection (e.g., assistant_id, phone_number).
+                    If None and _elevenlabs_context is set, uses that instead.
 
         Returns:
             The result from the tool execution
@@ -75,9 +77,12 @@ class OliveClient:
         if arguments is None:
             arguments = {}
 
+        # Use provided context, or fall back to stored ElevenLabs context
+        effective_context = context or self._elevenlabs_context
+
         payload: dict[str, Any] = {"tool_name": tool_name, "arguments": arguments}
-        if context:
-            payload["context"] = context
+        if effective_context:
+            payload["context"] = effective_context
 
         response = await self._client.post(f"{self.base_url}/olive/tools/call", json=payload)
         response.raise_for_status()
@@ -267,3 +272,59 @@ class OliveClient:
             langchain_tools.append(tool)
 
         return langchain_tools
+
+    async def as_elevenlabs_tools(
+        self,
+        tool_names: list[str] | None = None,
+        tool_type: str = "client",
+        context: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get Olive tools in ElevenLabs Agents Platform format.
+
+        Uses the /olive/tools/elevenlabs endpoint which formats tools correctly.
+
+        Args:
+            tool_names: Optional list of specific tool names to include.
+                       If None, returns all available tools.
+            tool_type: Tool type for ElevenLabs ("client", "webhook", "system", "mcp")
+            context: Optional context dict to store for later injection during tool calls
+                    (e.g., {"phone_number": "...", "assistant_id": "..."})
+
+        Returns:
+            List of tool definitions in ElevenLabs ClientToolConfig format:
+            {
+                "type": "client",
+                "name": "tool_name",
+                "description": "...",
+                "parameters": {
+                    "type": "object",
+                    "properties": {...},
+                    "required": [...]
+                },
+                "expects_response": true
+            }
+
+        Note:
+            - The context parameter is stored internally for automatic injection during call_tool()
+            - Parameters use ObjectJsonSchemaProperty format (clean JSON Schema without additionalProperties)
+            - Injected parameters (via Inject) are automatically excluded from the parameters schema
+            - All tools include expects_response: true by default
+        """
+        # Store context for later use in call_tool
+        if context:
+            self._elevenlabs_context = context
+
+        # Use the dedicated ElevenLabs endpoint
+        response = await self._client.get(
+            f"{self.base_url}/olive/tools/elevenlabs",
+            params={"tool_type": tool_type},
+        )
+        response.raise_for_status()
+        tools = response.json()
+
+        # Filter by tool names if specified
+        if tool_names:
+            tools = [t for t in tools if t["name"] in tool_names]
+
+        return tools

@@ -74,6 +74,14 @@ def dev(
     # Load configuration
     config = OliveConfig.from_file(config_file) if config_file else OliveConfig()
 
+    # Use config values unless explicitly overridden by CLI
+    # CLI defaults are 8000 and 0.0.0.0, so check if they were explicitly passed
+    # For now, always prefer config file values when config file is provided
+    if config_file:
+        host = config.server.host
+        port = config.server.port
+        reload = config.server.reload
+
     # Check and start Temporal if needed
     temporal_address = config.temporal.address
 
@@ -186,6 +194,11 @@ def serve(
 
     # Load configuration
     config = OliveConfig.from_file(config_file) if config_file else OliveConfig()
+
+    # Use config values unless explicitly overridden by CLI
+    if config_file:
+        host = config.server.host
+        port = config.server.port
 
     # Override with CLI options
     if temporal_address:

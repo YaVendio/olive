@@ -48,7 +48,7 @@ def create_app(config: OliveConfig | None = None) -> FastAPI:
     app = FastAPI(
         title="Olive Tool Server",
         description="🫒 FastAPI + Temporal tool framework",
-        version="1.2.2",
+        version="1.3.0",
         lifespan=lifespan,
     )
 
@@ -63,10 +63,11 @@ def create_app(config: OliveConfig | None = None) -> FastAPI:
     async def root() -> dict[str, Any]:
         return {
             "name": "Olive Tool Server",
-            "version": "1.2.2",
+            "version": "1.3.0",
             "description": "FastAPI + Temporal tool framework",
             "endpoints": {
                 "tools": "/olive/tools",
+                "tools_elevenlabs": "/olive/tools/elevenlabs",
                 "call": "/olive/tools/call",
                 "docs": "/docs",
             },
