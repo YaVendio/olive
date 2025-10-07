@@ -16,16 +16,20 @@ from olive.registry import _registry
 from olive.server.app import create_app
 
 
-@olive_tool(description="Test tool for ElevenLabs format")
-def test_tool_for_elevenlabs(name: str, age: int = 25) -> dict:
-    """A test tool with parameters."""
-    return {"name": name, "age": age}
-
-
 @pytest.fixture
 def test_app():
     """Create test app with registered tool."""
+    # Clear registry before each test
+    _registry.clear()
+
     app = create_app()
+
+    # Register test tool inside fixture
+    @olive_tool(description="Test tool for ElevenLabs format")
+    def example_tool_for_elevenlabs(name: str, age: int = 25) -> dict:
+        """A test tool with parameters."""
+        return {"name": name, "age": age}
+
     yield app
     # Cleanup
     _registry.clear()
@@ -61,8 +65,8 @@ def test_elevenlabs_tool_format(test_app):
     assert "description" in tool
     assert "parameters" in tool
 
-    # Type should default to client_tool
-    assert tool["type"] == "client_tool"
+    # Type should default to client
+    assert tool["type"] == "client"
 
     # Parameters should be JSON schema
     assert "type" in tool["parameters"]
@@ -73,26 +77,26 @@ def test_elevenlabs_tool_type_parameter(test_app):
     """Test that tool_type query parameter works."""
     client = TestClient(test_app)
 
-    # Test with server_tool type
-    response = client.get("/olive/tools/elevenlabs?tool_type=server_tool")
+    # Test with server type
+    response = client.get("/olive/tools/elevenlabs?tool_type=server")
     assert response.status_code == 200
 
     tools = response.json()
     if tools:
-        assert tools[0]["type"] == "server_tool"
+        assert tools[0]["type"] == "server"
 
 
 @pytest.mark.asyncio
 async def test_olive_client_as_elevenlabs_tools():
     """Test OliveClient.as_elevenlabs_tools() method."""
-    from unittest.mock import AsyncMock, patch
 
-    # Mock the HTTP response
-    mock_tools = [
+    # Mock ElevenLabs formatted tools response
+    mock_elevenlabs_tools = [
         {
+            "type": "client",
             "name": "schedule_appointment",
             "description": "Schedule an appointment",
-            "input_schema": {
+            "parameters": {
                 "type": "object",
                 "properties": {
                     "date": {"type": "string"},
@@ -100,7 +104,7 @@ async def test_olive_client_as_elevenlabs_tools():
                 },
                 "required": ["date", "time"],
             },
-            "output_schema": {"type": "string"},
+            "expects_response": True,
         }
     ]
 
@@ -108,37 +112,44 @@ async def test_olive_client_as_elevenlabs_tools():
 
     client = OliveClient("http://localhost:8000")
 
-    # Mock get_tools to return our test tools
-    client.get_tools = AsyncMock(return_value=mock_tools)
+    # Mock HTTP client get response
+    get_response = Mock()
+    get_response.json.return_value = mock_elevenlabs_tools
+    get_response.raise_for_status = Mock()
 
     # Convert to ElevenLabs format
-    el_tools = await client.as_elevenlabs_tools()
+    with patch.object(client._client, "get", return_value=get_response):
+        el_tools = await client.as_elevenlabs_tools()
 
     assert len(el_tools) == 1
-    assert el_tools[0]["type"] == "client_tool"
+    assert el_tools[0]["type"] == "client"
     assert el_tools[0]["name"] == "schedule_appointment"
     assert el_tools[0]["description"] == "Schedule an appointment"
-    assert el_tools[0]["parameters"] == mock_tools[0]["input_schema"]
+    assert "parameters" in el_tools[0]
 
 
 @pytest.mark.asyncio
 async def test_olive_client_elevenlabs_with_tool_filter():
     """Test filtering specific tools for ElevenLabs."""
-    from unittest.mock import AsyncMock
 
     from olive_client import OliveClient
 
-    mock_tools = [
-        {"name": "tool1", "description": "First tool", "input_schema": {}},
-        {"name": "tool2", "description": "Second tool", "input_schema": {}},
-        {"name": "tool3", "description": "Third tool", "input_schema": {}},
+    mock_elevenlabs_tools = [
+        {"type": "client", "name": "tool1", "description": "First tool", "parameters": {}, "expects_response": True},
+        {"type": "client", "name": "tool2", "description": "Second tool", "parameters": {}, "expects_response": True},
+        {"type": "client", "name": "tool3", "description": "Third tool", "parameters": {}, "expects_response": True},
     ]
 
     client = OliveClient("http://localhost:8000")
-    client.get_tools = AsyncMock(return_value=mock_tools)
+
+    # Mock HTTP client get response
+    get_response = Mock()
+    get_response.json.return_value = mock_elevenlabs_tools
+    get_response.raise_for_status = Mock()
 
     # Request only specific tools
-    el_tools = await client.as_elevenlabs_tools(tool_names=["tool1", "tool3"])
+    with patch.object(client._client, "get", return_value=get_response):
+        el_tools = await client.as_elevenlabs_tools(tool_names=["tool1", "tool3"])
 
     assert len(el_tools) == 2
     assert el_tools[0]["name"] == "tool1"
@@ -148,26 +159,32 @@ async def test_olive_client_elevenlabs_with_tool_filter():
 @pytest.mark.asyncio
 async def test_olive_client_elevenlabs_server_tool_type():
     """Test specifying server_tool type."""
-    from unittest.mock import AsyncMock
 
     from olive_client import OliveClient
 
-    mock_tools = [{"name": "api_tool", "description": "API tool", "input_schema": {}}]
+    mock_elevenlabs_tools = [
+        {"type": "server", "name": "api_tool", "description": "API tool", "parameters": {}, "expects_response": True}
+    ]
 
     client = OliveClient("http://localhost:8000")
-    client.get_tools = AsyncMock(return_value=mock_tools)
 
-    # Request server_tool type
-    el_tools = await client.as_elevenlabs_tools(tool_type="server_tool")
+    # Mock HTTP client get response
+    get_response = Mock()
+    get_response.json.return_value = mock_elevenlabs_tools
+    get_response.raise_for_status = Mock()
+
+    # Request server type
+    with patch.object(client._client, "get", return_value=get_response):
+        el_tools = await client.as_elevenlabs_tools(tool_type="server")
 
     assert len(el_tools) == 1
-    assert el_tools[0]["type"] == "server_tool"
+    assert el_tools[0]["type"] == "server"
 
 
 @pytest.mark.asyncio
 async def test_olive_client_elevenlabs_with_context_injection():
     """Test context injection for ElevenLabs tools."""
-    from unittest.mock import AsyncMock, Mock
+    from unittest.mock import AsyncMock
 
     from olive_client import OliveClient
 
@@ -197,6 +214,9 @@ async def test_olive_client_elevenlabs_with_context_injection():
         el_tools = await client.as_elevenlabs_tools(
             context={"phone_number": "1234567890", "assistant_id": "test-assistant"}
         )
+
+    # Verify tools were returned
+    assert len(el_tools) == 1
 
     # Verify context was stored
     assert client._elevenlabs_context is not None
