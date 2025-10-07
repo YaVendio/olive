@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Annotated, Any, Union, get_args, get_origin, get_type_hints
 
 from pydantic import BaseModel, Field
+from pydantic.fields import FieldInfo
 
 
 class ToolInfo(BaseModel):
@@ -79,6 +80,19 @@ def _parse_inject_annotation(py_type: Any) -> tuple[Any, ToolInjection | None]:
     return py_type, None
 
 
+def _extract_field_description(py_type: Any) -> str | None:
+    """If py_type is Annotated[..., Field(description=...)], extract the description."""
+    origin = get_origin(py_type)
+    if origin is Annotated:
+        args = get_args(py_type)
+        if len(args) > 1:
+            meta = args[1:]
+            for m in meta:
+                if isinstance(m, FieldInfo) and m.description:
+                    return m.description
+    return None
+
+
 def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[str, Any], list[ToolInjection]]:
     """Extract input/output JSON schemas and injection metadata from function type hints."""
     # Get type hints with include_extras=True to preserve Annotated metadata
@@ -108,6 +122,11 @@ def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[s
         # Convert Python type to JSON schema type
         json_type = python_type_to_json_schema(base_type)
 
+        # Extract Field description if present
+        field_description = _extract_field_description(param_type)
+        if field_description:
+            json_type["description"] = field_description
+
         properties[param_name] = json_type
 
         # Check if required (no default value)
@@ -129,6 +148,20 @@ def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[s
 
 def python_type_to_json_schema(py_type: Any) -> dict[str, Any]:
     """Convert Python type to JSON schema."""
+    # Unwrap Annotated types to get the base type
+    # e.g., Annotated[str, Field(...)] -> str
+    origin = get_origin(py_type)
+    if origin is Annotated:
+        args = get_args(py_type)
+        if args:
+            py_type = args[0]  # First arg is the actual type
+            # Re-get origin for the unwrapped type
+            origin = get_origin(py_type) or getattr(py_type, "__origin__", None)
+        else:
+            origin = None
+    else:
+        origin = origin or getattr(py_type, "__origin__", None)
+
     # Handle basic types
     if py_type is str:
         return {"type": "string"}
@@ -148,7 +181,6 @@ def python_type_to_json_schema(py_type: Any) -> dict[str, Any]:
         return {"type": "null"}
 
     # Handle typing and collections generics
-    origin = get_origin(py_type) or getattr(py_type, "__origin__", None)
     args = get_args(py_type) or getattr(py_type, "__args__", ())
 
     if origin in {list, set}:
