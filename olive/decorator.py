@@ -13,6 +13,7 @@ def olive_tool[T: Callable](
     description: str | None = None,
     timeout_seconds: int = 300,
     retry_policy: dict[str, Any] | None = None,
+    fire_and_forget: bool = False,
 ) -> T | Callable[[T], T]:
     """
     Decorator to mark a function as an Olive tool.
@@ -21,7 +22,7 @@ def olive_tool[T: Callable](
         @olive_tool
         def my_func(): ...
 
-        @olive_tool(description="My tool")
+        @olive_tool(description="My tool", fire_and_forget=True)
         def my_func(): ...
 
         Args:
@@ -29,6 +30,7 @@ def olive_tool[T: Callable](
         description: Override the tool description (defaults to function docstring)
         timeout_seconds: Timeout for Temporal execution (v1 mode)
         retry_policy: Retry policy for Temporal execution (v1 mode)
+        fire_and_forget: If True, returns workflow ID immediately without waiting
 
     Returns:
         The decorated function (unchanged)
@@ -51,6 +53,7 @@ def olive_tool[T: Callable](
             func=f,
             timeout_seconds=timeout_seconds,
             retry_policy=retry_policy or {"max_attempts": 3},
+            fire_and_forget=fire_and_forget,
             injections=injections,
         )
 

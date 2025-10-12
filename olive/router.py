@@ -219,15 +219,30 @@ async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
 
         # Use Temporal if available (v1 mode)
         if _temporal_worker is not None:
-            result = await _temporal_worker.execute_tool(request.tool_name, final_args)
-            return ToolCallResponse(
-                success=True,
-                result=result,
-                metadata={
-                    "executed_via": "temporal",
-                    "workflow_type": "OliveToolWorkflow",
-                },
-            )
+            # Check fire-and-forget mode
+            if tool_info.fire_and_forget:
+                # Fire-and-forget: start workflow without waiting
+                workflow_id = await _temporal_worker.start_tool(request.tool_name, final_args)
+                return ToolCallResponse(
+                    success=True,
+                    result=f"Workflow started: {workflow_id}",
+                    metadata={
+                        "executed_via": "temporal",
+                        "workflow_id": workflow_id,
+                        "fire_and_forget": True,
+                    },
+                )
+            else:
+                # Wait for completion
+                result = await _temporal_worker.execute_tool(request.tool_name, final_args)
+                return ToolCallResponse(
+                    success=True,
+                    result=result,
+                    metadata={
+                        "executed_via": "temporal",
+                        "workflow_type": "OliveToolWorkflow",
+                    },
+                )
 
         # Otherwise use direct execution (v0 mode)
         func = tool_info.func

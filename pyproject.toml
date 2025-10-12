@@ -1,6 +1,6 @@
 [project]
 name = "olive"
-version = "1.3.2"
+version = "1.3.3"
 description = "Minimal framework for exposing FastAPI endpoints as LangChain tools with Temporal"
 authors = [{ name = "YaVendio", email = "t@yavendio.com" }]
 readme = "README.md"
@@ -23,6 +23,7 @@ dependencies = [
     "rich>=13.10.0",
     "pyyaml>=6.0",
     "pytest>=8.4.1",
+    "kora-tools",
 ]
 
 [project.urls]
@@ -99,6 +100,9 @@ reportAny = false
 reportImplicitOverride = false
 venvPath = "."
 venv = ".venv"
+
+[tool.uv.sources]
+kora-tools = { path = "../kora-tools", editable = true }
 
 [dependency-groups]
 dev = [

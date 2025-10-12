@@ -137,3 +137,28 @@ class TemporalWorker:
         )
 
         return result
+
+    async def start_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:
+        """Start tool workflow without waiting (fire-and-forget).
+
+        Args:
+            tool_name: Name of the tool to execute
+            arguments: Tool arguments
+
+        Returns:
+            Workflow ID (not the result)
+        """
+        import time
+
+        client = await self._get_client()
+
+        workflow_id = f"olive-tool-{tool_name}-{int(time.time() * 1000)}"
+
+        handle = await client.start_workflow(
+            OliveToolWorkflow.run,
+            args=[tool_name, arguments],
+            id=workflow_id,
+            task_queue=self.config.temporal.task_queue,
+        )
+
+        return handle.id  # Return workflow ID immediately, don't await result

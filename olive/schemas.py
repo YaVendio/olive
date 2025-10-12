@@ -22,6 +22,9 @@ class ToolInfo(BaseModel):
     timeout_seconds: int = 300
     retry_policy: dict[str, Any] | None = None
 
+    # Fire-and-forget mode (returns workflow ID without waiting)
+    fire_and_forget: bool = False
+
     # Context injections (parameters excluded from input_schema and filled from configurable)
     injections: list["ToolInjection"] = Field(default_factory=list)
 
