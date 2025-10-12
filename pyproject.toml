@@ -23,7 +23,6 @@ dependencies = [
     "rich>=13.10.0",
     "pyyaml>=6.0",
     "pytest>=8.4.1",
-    "kora-tools",
 ]
 
 [project.urls]
@@ -101,8 +100,6 @@ reportImplicitOverride = false
 venvPath = "."
 venv = ".venv"
 
-[tool.uv.sources]
-kora-tools = { path = "../kora-tools", editable = true }
 
 [dependency-groups]
 dev = [
