@@ -1,6 +1,6 @@
 # Installing Olive with uv from GitHub Package Registry
 
-This guide explains how to install the `olive` package using `uv` from GitHub's private package registry.
+This guide explains how to install the `olive` package using `uv` from GitHub's package registry.
 
 ## Prerequisites
 
@@ -33,10 +33,8 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 ### Method 1: Direct Installation from Git
 
-Since the repository is private, you'll need to configure Git authentication:
-
 ```bash
-# Install directly from the private Git repository
+# Install directly from the Git repository
 uv pip install git+ssh://git@github.com/YaVendio/olive.git
 
 # Or with HTTPS (you'll be prompted for credentials)

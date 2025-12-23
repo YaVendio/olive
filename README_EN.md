@@ -1,7 +1,6 @@
 # Olive 🫒
 
 [![Tests](https://github.com/YaVendio/olive/actions/workflows/tests.yml/badge.svg)](https://github.com/YaVendio/olive/actions/workflows/tests.yml)
-[![codecov](https://codecov.yvd.io/gh/YaVendio/olive/graph/badge.svg?token=GBSWGDHRBB)](https://codecov.yvd.io/gh/YaVendio/olive)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FYaVendio%2Folive%2Fmain%2Fpyproject.toml)](https://github.com/YaVendio/olive/blob/main/pyproject.toml)
@@ -29,7 +28,7 @@ Olive lets you easily convert your FastAPI endpoints into tools that can be used
 
 ## Installation
 
-### From GitHub (Private Repository)
+### From GitHub
 
 This package is distributed through GitHub. You can install it directly from Git or download releases.
 
