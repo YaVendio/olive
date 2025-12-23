@@ -10,7 +10,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
-    "Private :: Do Not Upload",
 ]
 
 dependencies = [
