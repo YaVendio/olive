@@ -23,8 +23,8 @@ app = create_app()
 # That's it! Your function is now a remote tool.
 ```
 
-> **📦 Installation Note:** Olive is distributed via GitHub, not PyPI.  
-> Install with: `pip install git+https://github.com/YaVendio/olive.git`  
+> **📦 Installation Note:** Olive is distributed via GitHub, not PyPI.
+> Install with: `pip install git+https://github.com/YaVendio/olive.git`
 > For detailed options, see the [Installation](#installation) section below.
 
 ---
@@ -194,11 +194,11 @@ from langgraph.prebuilt import create_react_agent
 # Connect to your tool server
 async with OliveClient("http://localhost:8000") as client:
     tools = await client.as_langchain_tools()
-    
+
     # Create agent with remote tools
     model = ChatAnthropic(model="claude-3-sonnet")
     agent = create_react_agent(model, tools=tools)
-    
+
     # Agent can now call your tools remotely!
     response = await agent.ainvoke({
         "messages": [("user", "Calculate tax on $1000")]
@@ -410,15 +410,15 @@ from olive_client import OliveClient
 async with OliveClient("http://your-server.com") as client:
     # List all tools
     tools = await client.get_tools()
-    
+
     # Call tool directly
     result = await client.call_tool("tool_name", {"arg": "value"})
-    
+
     # Filter specific tools
     langchain_tools = await client.as_langchain_tools(
         tool_names=["tool1", "tool2"]
     )
-    
+
     # Context injection for multi-tenant
     tools = await client.as_langchain_tools_injecting(
         context_provider=lambda cfg: cfg.configurable
@@ -461,7 +461,7 @@ async with OliveClient("http://your-server.com") as client:
 ```python
 class OliveClient:
     def __init__(self, base_url: str, timeout: float = 30.0)
-    
+
     async def get_tools(self) -> list[dict]
     async def call_tool(self, tool_name: str, arguments: dict) -> Any
     async def as_langchain_tools(self, tool_names: list[str] = None) -> list[StructuredTool]
