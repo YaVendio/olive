@@ -13,6 +13,7 @@ from olive.config import OliveConfig, ServerConfig, TemporalConfig, ToolsConfig
 def test_temporal_config_defaults():
     """Test TemporalConfig default values."""
     config = TemporalConfig()
+    assert config.enabled is False  # Default should be disabled
     assert config.address == "localhost:7233"
     assert config.namespace_endpoint is None
     assert config.namespace == "default"
@@ -23,6 +24,65 @@ def test_temporal_config_defaults():
     assert config.client_key_path is None
     assert config.server_root_ca_path is None
     assert config.server_name is None
+
+
+def test_temporal_config_auto_enable_with_custom_address():
+    """Test that custom address auto-enables Temporal."""
+    config = TemporalConfig(address="prod-temporal.example.com:7233")
+    assert config.enabled is True
+
+
+def test_temporal_config_auto_enable_with_cloud_namespace():
+    """Test that cloud namespace auto-enables Temporal."""
+    config = TemporalConfig(cloud_namespace="my-namespace")
+    assert config.enabled is True
+
+
+def test_temporal_config_auto_enable_with_cloud_api_key():
+    """Test that cloud API key auto-enables Temporal."""
+    config = TemporalConfig(cloud_api_key="my-key")
+    assert config.enabled is True
+
+
+def test_temporal_config_auto_enable_with_namespace_endpoint():
+    """Test that namespace endpoint auto-enables Temporal."""
+    config = TemporalConfig(namespace_endpoint="namespace.tmprl.cloud:7233")
+    assert config.enabled is True
+
+
+def test_temporal_config_auto_enable_with_custom_namespace():
+    """Test that custom namespace auto-enables Temporal."""
+    config = TemporalConfig(namespace="production")
+    assert config.enabled is True
+
+
+def test_temporal_config_auto_enable_with_tls():
+    """Test that TLS configuration auto-enables Temporal."""
+    config = TemporalConfig(client_cert_path="/path/to/cert.pem")
+    assert config.enabled is True
+
+
+def test_temporal_config_no_auto_enable_with_defaults():
+    """Test that default config does NOT auto-enable."""
+    config = TemporalConfig()
+    assert config.enabled is False
+
+
+def test_temporal_config_explicit_enabled_respected():
+    """Test that explicit enabled=True is respected."""
+    config = TemporalConfig(enabled=True)
+    assert config.enabled is True
+
+
+def test_temporal_config_explicit_disabled_with_custom_config():
+    """Test that explicit enabled=False is respected even with custom config.
+
+    This allows users to have Temporal configuration but explicitly disable it
+    (e.g., during migration, testing, or gradual rollout).
+    """
+    config = TemporalConfig(enabled=False, address="custom:7233")
+    # Should respect explicit enabled=False even with custom address
+    assert config.enabled is False
 
 
 def test_temporal_config_is_cloud():

@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class TemporalConfig(BaseModel):
@@ -25,6 +25,42 @@ class TemporalConfig(BaseModel):
     client_key_path: str | None = Field(default=None, description="Path to TLS client private key")
     server_root_ca_path: str | None = Field(default=None, description="Path to Temporal server root CA certificate")
     server_name: str | None = Field(default=None, description="Override server name for TLS verification")
+
+    @model_validator(mode="after")
+    def auto_enable_if_configured(self) -> "TemporalConfig":
+        """Auto-enable Temporal if any non-default configuration is detected.
+
+        This ensures backward compatibility with existing projects that have Temporal
+        configuration but don't explicitly set enabled=True.
+
+        Note: If 'enabled' is explicitly set (True or False), we respect that choice.
+        Auto-enable only happens when 'enabled' was not explicitly provided.
+        """
+        # If 'enabled' was explicitly set by user, respect their choice
+        if "enabled" in self.model_fields_set:
+            return self
+
+        # Check if any non-default Temporal configuration is present
+        has_custom_config = (
+            # Custom server address (not default localhost)
+            self.address != "localhost:7233"
+            # Cloud configuration
+            or self.cloud_namespace is not None
+            or self.cloud_api_key is not None
+            or self.namespace_endpoint is not None
+            # TLS configuration
+            or self.client_cert_path is not None
+            or self.client_key_path is not None
+            or self.server_root_ca_path is not None
+            # Custom namespace (not default)
+            or self.namespace != "default"
+        )
+
+        # Auto-enable if configuration detected (only when enabled wasn't explicitly set)
+        if has_custom_config:
+            self.enabled = True
+
+        return self
 
     @property
     def is_cloud(self) -> bool:

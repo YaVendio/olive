@@ -132,7 +132,6 @@ def test_app_integration():
     mock_worker_class.return_value = mock_worker
 
     with mock.patch("olive.server.app._import_temporal_worker", return_value=mock_worker_class):
-
         # Use TestClient which handles lifespan
         with TestClient(app) as client:
             # Test root endpoint
