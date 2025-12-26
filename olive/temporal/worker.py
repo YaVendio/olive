@@ -111,7 +111,7 @@ class TemporalWorker:
 
     async def check_connection(self) -> bool:
         """Check if Temporal server is accessible.
-        
+
         Returns:
             True if connection successful, False otherwise.
         """

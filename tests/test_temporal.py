@@ -11,9 +11,11 @@ try:
     from temporalio import activity, workflow
     from temporalio.client import Client
     from temporalio.worker import Worker
+
     from olive.temporal.activities import create_activity_from_tool
     from olive.temporal.worker import TemporalWorker
     from olive.temporal.workflows import OliveToolWorkflow
+
     TEMPORAL_AVAILABLE = True
 except ImportError:
     TEMPORAL_AVAILABLE = False
@@ -31,10 +33,7 @@ from olive.registry import _registry
 from olive.schemas import ToolInfo
 
 # Skip all tests in this module if Temporal not installed
-pytestmark = pytest.mark.skipif(
-    not TEMPORAL_AVAILABLE,
-    reason="Temporal not installed (pip install olive[temporal])"
-)
+pytestmark = pytest.mark.skipif(not TEMPORAL_AVAILABLE, reason="Temporal not installed (pip install olive[temporal])")
 
 
 def test_create_activity_from_tool_sync():

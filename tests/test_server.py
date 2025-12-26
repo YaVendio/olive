@@ -60,12 +60,17 @@ def test_root_endpoint():
 @pytest.mark.asyncio
 async def test_lifespan():
     """Test the lifespan context manager."""
-    app = create_app()
+    from olive.config import OliveConfig, TemporalConfig
 
-    with mock.patch("olive.server.app.TemporalWorker") as mock_worker_class:
-        mock_worker = mock.Mock()
-        mock_worker_class.return_value = mock_worker
+    config = OliveConfig(temporal=TemporalConfig(enabled=True))
+    app = create_app(config)
 
+    mock_worker_class = mock.Mock()
+    mock_worker = mock.Mock()
+    mock_worker.check_connection = mock.AsyncMock(return_value=True)
+    mock_worker_class.return_value = mock_worker
+
+    with mock.patch("olive.server.app._import_temporal_worker", return_value=mock_worker_class):
         # Simulate the lifespan
         async with lifespan(app):
             # Worker should be started
@@ -82,13 +87,18 @@ async def test_lifespan():
 @pytest.mark.asyncio
 async def test_lifespan_sets_temporal_worker():
     """Test that lifespan sets the temporal worker on the router."""
-    app = create_app()
+    from olive.config import OliveConfig, TemporalConfig
 
-    with mock.patch("olive.server.app.TemporalWorker") as mock_worker_class:
+    config = OliveConfig(temporal=TemporalConfig(enabled=True))
+    app = create_app(config)
+
+    mock_worker_class = mock.Mock()
+    mock_worker = mock.Mock()
+    mock_worker.check_connection = mock.AsyncMock(return_value=True)
+    mock_worker_class.return_value = mock_worker
+
+    with mock.patch("olive.server.app._import_temporal_worker", return_value=mock_worker_class):
         with mock.patch("olive.server.app.set_temporal_worker") as mock_set_worker:
-            mock_worker = mock.Mock()
-            mock_worker_class.return_value = mock_worker
-
             async with lifespan(app):
                 # Should set the worker on the router
                 mock_set_worker.assert_called_with(mock_worker)
@@ -110,12 +120,18 @@ def test_get_worker_not_initialized():
 
 def test_app_integration():
     """Test the full app integration."""
-    app = create_app()
+    from olive.config import OliveConfig, TemporalConfig
+
+    config = OliveConfig(temporal=TemporalConfig(enabled=True))
+    app = create_app(config)
 
     # Mock the worker to avoid starting real Temporal
-    with mock.patch("olive.server.app.TemporalWorker") as mock_worker_class:
-        mock_worker = mock.Mock()
-        mock_worker_class.return_value = mock_worker
+    mock_worker_class = mock.Mock()
+    mock_worker = mock.Mock()
+    mock_worker.check_connection = mock.AsyncMock(return_value=True)
+    mock_worker_class.return_value = mock_worker
+
+    with mock.patch("olive.server.app._import_temporal_worker", return_value=mock_worker_class):
 
         # Use TestClient which handles lifespan
         with TestClient(app) as client:

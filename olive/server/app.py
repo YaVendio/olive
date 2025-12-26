@@ -19,6 +19,7 @@ def _import_temporal_worker():
     """Lazily import TemporalWorker, raising clear error if not available."""
     try:
         from olive.temporal.worker import TemporalWorker
+
         return TemporalWorker
     except ImportError as e:
         raise RuntimeError(
@@ -40,18 +41,18 @@ async def lifespan(app: FastAPI):
     # Startup
     global _worker
     config = getattr(app.state, "config", OliveConfig())
-    
+
     # Check if Temporal is enabled in config
     if config.temporal.enabled:
         logger.info("Temporal enabled in config, initializing worker...")
-        
+
         # Lazy import - fails fast if package not installed
         try:
             TemporalWorker = _import_temporal_worker()
         except RuntimeError as e:
             logger.error(str(e))
             raise  # Fail startup with clear error
-        
+
         # Try to connect
         _worker = TemporalWorker(config)
         if await _worker.check_connection():
@@ -71,9 +72,9 @@ async def lifespan(app: FastAPI):
         logger.info("Temporal disabled, using direct execution mode")
         _worker = None
         set_temporal_worker(None)
-    
+
     yield
-    
+
     # Shutdown
     if _worker:
         _worker.stop()
