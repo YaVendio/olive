@@ -23,6 +23,10 @@ app = create_app()
 # That's it! Your function is now a remote tool.
 ```
 
+> **📦 Installation Note:** Olive is distributed via GitHub, not PyPI.  
+> Install with: `pip install git+https://github.com/YaVendio/olive.git`  
+> For detailed options, see the [Installation](#installation) section below.
+
 ---
 
 ## Why Olive?
@@ -60,12 +64,96 @@ app = create_app()
 
 ---
 
+## Installation
+
+Olive is distributed via GitHub. Choose the installation method that works best for you:
+
+### From GitHub (Recommended)
+
+```bash
+# Basic installation (without Temporal)
+pip install git+https://github.com/YaVendio/olive.git
+
+# With Temporal support for production
+pip install "git+https://github.com/YaVendio/olive.git#egg=olive[temporal]"
+
+# Using SSH (if you have SSH keys configured)
+pip install git+ssh://git@github.com/YaVendio/olive.git
+```
+
+### Using uv (Faster Alternative)
+
+[uv](https://github.com/astral-sh/uv) is a fast Python package installer:
+
+```bash
+# Install with uv
+uv pip install git+https://github.com/YaVendio/olive.git
+
+# With Temporal
+uv pip install "git+https://github.com/YaVendio/olive.git#egg=olive[temporal]"
+```
+
+### Development Installation
+
+For local development or testing:
+
+```bash
+# Clone the repository
+git clone https://github.com/YaVendio/olive.git
+cd olive
+
+# Install in editable mode (changes reflect immediately)
+pip install -e .
+
+# Or with Temporal support
+pip install -e ".[temporal]"
+
+# Or with all optional dependencies
+pip install -e ".[all,dev]"
+```
+
+### From Local Path
+
+If you have a local copy:
+
+```bash
+# Without Temporal
+pip install /path/to/olive
+
+# With Temporal
+pip install "/path/to/olive[temporal]"
+```
+
+### In pyproject.toml
+
+Add to your project's dependencies:
+
+```toml
+[project]
+dependencies = [
+    "olive @ git+https://github.com/YaVendio/olive.git",
+]
+
+# Or for a specific version/tag
+dependencies = [
+    "olive @ git+https://github.com/YaVendio/olive.git@v1.3.4",
+]
+```
+
+For detailed installation instructions including CI/CD setup, see [INSTALL_WITH_UV.md](INSTALL_WITH_UV.md).
+
+---
+
 ## Quick Start (60 seconds)
 
 ### 1. Install
 
 ```bash
-pip install olive
+# From GitHub (no Temporal - fastest start)
+pip install git+https://github.com/YaVendio/olive.git
+
+# Or if you need Temporal support for production
+pip install "git+https://github.com/YaVendio/olive.git#egg=olive[temporal]"
 ```
 
 ### 2. Create Your Tool Server
