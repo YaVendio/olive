@@ -1,7 +1,7 @@
 [project]
 name = "olive"
 version = "1.3.4"
-description = "Minimal framework for exposing FastAPI endpoints as LangChain tools with Temporal"
+description = "Minimal framework for exposing FastAPI endpoints as LangChain tools"
 authors = [{ name = "YaVendio", email = "t@yavendio.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,7 +17,6 @@ dependencies = [
     "pydantic>=2.10.0",
     "httpx>=0.27.0",
     "langchain-core>=0.3.0",
-    "temporalio>=1.7.0",
     "typer>=0.15.0",
     "rich>=13.10.0",
     "pyyaml>=6.0",
@@ -31,6 +30,9 @@ dependencies = [
 "Bug Reports" = "https://github.com/YaVendio/olive/issues"
 
 [project.optional-dependencies]
+temporal = [
+    "temporalio>=1.7.0",
+]
 dev = [
     "ruff>=0.8.0",
     "basedpyright>=1.21.0",
@@ -38,6 +40,9 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
     "pre-commit>=4.0.0",
+]
+all = [
+    "temporalio>=1.7.0",
 ]
 
 [project.scripts]

@@ -12,7 +12,7 @@
 
 _[English documentation available](README_EN.md) / [Documentación en inglés disponible](README_EN.md)_
 
-> Un framework minimalista para exponer endpoints de FastAPI como herramientas de LangChain con integración de Temporal para ejecución confiable y escalable.
+> Un framework minimalista para exponer endpoints de FastAPI como herramientas de LangChain. Funciona inmediatamente sin dependencias adicionales, con integración opcional de Temporal para producción.
 
 ## 📋 Tabla de Contenidos
 
@@ -39,25 +39,26 @@ Olive es un framework que simplifica la exposición de funciones Python como her
 ### ¿Por qué Olive?
 
 - **Simplicidad**: Un solo decorador transforma tus funciones en herramientas remotas
-- **Confiabilidad**: Integración con Temporal para ejecución distribuida y tolerante a fallos
+- **Sin Fricción**: Funciona inmediatamente sin configuración ni dependencias adicionales
 - **Flexibilidad**: Compatible con funciones síncronas y asíncronas
 - **Type-Safe**: Extracción automática de esquemas desde type hints de Python
-- **Escalable**: Diseñado para manejar cargas de trabajo empresariales
+- **Escalable**: Integración opcional con Temporal para producción
 
 ## ✨ Características
 
 ### Características Principales
 
 - 🎯 **Decorador Simple**: Convierte funciones en herramientas con `@olive_tool`
+- ⚡ **Funciona Inmediatamente**: Sin configuración, sin setup, solo `pip install olive`
 - 🔧 **Type-Safe**: Validación automática con Pydantic y extracción de esquemas
 - 🚀 **Async-First**: Soporte completo para programación asíncrona
 - 🔗 **Integración con LangChain**: Conversión directa a herramientas de LangChain
-- 📦 **Dependencias Mínimas**: Solo FastAPI, Pydantic, httpx, langchain-core y Temporal
+- 📦 **Dependencias Mínimas**: Solo FastAPI, Pydantic, httpx y langchain-core
 
-### Características Avanzadas
+### Características Avanzadas (Opcionales)
 
-- ⚡ **Integración con Temporal**: Ejecución distribuida y confiable
-- 🔄 **Políticas de Reintentos**: Manejo automático de fallos con reintentos configurables
+- ⚡ **Integración con Temporal**: Habilita ejecución distribuida y confiable (opcional)
+- 🔄 **Políticas de Reintentos**: Manejo automático de fallos (con Temporal)
 - ⏱️ **Timeouts Configurables**: Control de tiempo de ejecución por herramienta
 - 📊 **Monitoreo**: Métricas y logs detallados de ejecución
 - 🎨 **CLI Rica**: Interfaz de línea de comandos con animaciones y feedback visual
@@ -83,9 +84,8 @@ Olive utiliza una arquitectura de tres capas:
 
 ### Prerrequisitos
 
-- Python 3.13 o superior
-- [uv](https://github.com/astral-sh/uv) (gestor de paquetes recomendado)
-- Temporal CLI (opcional, para desarrollo local)
+- Python 3.12 o superior
+- pip o [uv](https://github.com/astral-sh/uv) (gestor de paquetes recomendado)
 
 ### Instalación desde GitHub
 
@@ -110,64 +110,44 @@ uv pip install -e .
 
 Para instrucciones detalladas de instalación, consulta [INSTALL_WITH_UV.md](INSTALL_WITH_UV.md).
 
-## 🚀 Inicio Rápido
+## 🚀 Inicio Rápido (60 segundos)
 
-### 1. Crear Herramientas en el Servidor
-
-```python
-from olive import olive_tool, setup_olive
-from fastapi import FastAPI
-
-app = FastAPI()
-setup_olive(app)  # Agrega los endpoints de Olive
-
-@olive_tool
-def traducir(texto: str, idioma_destino: str = "en") -> dict:
-    """Traduce texto a otro idioma."""
-    # Tu implementación aquí
-    traducciones = {
-        "en": f"[EN] {texto}",
-        "fr": f"[FR] {texto}",
-        "de": f"[DE] {texto}",
-    }
-    return {
-        "original": texto,
-        "traducido": traducciones.get(idioma_destino, texto),
-        "idioma": idioma_destino
-    }
-
-@olive_tool(description="Analiza el sentimiento del texto")
-async def analizar_sentimiento(texto: str, detallado: bool = False) -> dict:
-    """Realiza análisis de sentimiento en el texto."""
-    # Implementación asíncrona
-    await asyncio.sleep(0.1)  # Simular procesamiento
-
-    resultado = {
-        "sentimiento": "positivo",
-        "puntuación": 0.85,
-        "texto": texto
-    }
-
-    if detallado:
-        resultado["detalles"] = {
-            "confianza": 0.95,
-            "emociones": ["alegría", "optimismo"]
-        }
-
-    return resultado
-```
-
-### 2. Iniciar el Servidor
+### 1. Instalar
 
 ```bash
-# Usando el CLI de Olive (recomendado)
-olive dev
-
-# O directamente con Python
-python -m olive
+pip install olive
 ```
 
-### 3. Usar desde el Cliente
+### 2. Crear tu servidor
+
+```python
+# server.py
+from olive import olive_tool, create_app
+
+@olive_tool
+def saludar(nombre: str) -> str:
+    """Saluda a alguien."""
+    return f"¡Hola {nombre}!"
+
+@olive_tool
+def sumar(a: int, b: int) -> int:
+    """Suma dos números."""
+    return a + b
+
+app = create_app()
+```
+
+### 3. Ejecutar
+
+```bash
+uvicorn server:app
+```
+
+**¡Eso es todo!** Tu servidor está funcionando. No necesitas Temporal, ni configuración adicional. Las herramientas funcionan inmediatamente vía ejecución directa.
+
+### 4. Usar desde el Cliente
+
+### 5. Usar desde el Cliente
 
 ```python
 from olive_client import OliveClient
@@ -185,7 +165,7 @@ async with OliveClient("http://localhost:8000") as client:
     print(resultado)  # {"original": "Hola mundo", "traducido": "[EN] Hola mundo", ...}
 ```
 
-### 4. Integración con LangChain
+### 6. Integración con LangChain
 
 ```python
 from langchain_anthropic import ChatAnthropic
@@ -383,15 +363,65 @@ export OLIVE_TOOLS_DEFAULT_TIMEOUT=300
 export OLIVE_TOOLS_DEFAULT_RETRY_ATTEMPTS=3
 ```
 
-## 🔄 Integración con Temporal
+## 🔄 Integración con Temporal (Opcional)
 
-Olive utiliza [Temporal](https://temporal.io) para proporcionar ejecución confiable y escalable de herramientas.
+**Por defecto, Olive funciona sin Temporal** usando ejecución directa. Para producción, puedes habilitar [Temporal](https://temporal.io) para obtener ejecución confiable y escalable.
+
+### ¿Cuándo usar Temporal?
+
+Usa ejecución directa (por defecto) para:
+- ✅ Desarrollo y prototipos
+- ✅ Aplicaciones simples
+- ✅ Herramientas de respuesta rápida
+
+Habilita Temporal para:
+- ⚡ Reintentos automáticos en caso de fallos
+- ⚡ Tareas de larga duración (minutos/horas)
+- ⚡ Ejecución distribuida entre workers
+- ⚡ Observabilidad completa de ejecuciones
+
+### Habilitar Temporal
+
+#### 1. Instalar con soporte Temporal
+
+```bash
+pip install olive[temporal]
+```
+
+#### 2. Configurar
+
+Crea `.olive.yaml`:
+
+```yaml
+temporal:
+  enabled: true  # Habilitar Temporal
+  address: localhost:7233
+  namespace: default
+  task_queue: olive-tools
+```
+
+#### 3. Iniciar Temporal Server
+
+```bash
+# Desarrollo local
+temporal server start-dev
+
+# O usar Temporal Cloud
+# (configura cloud_namespace y cloud_api_key en .olive.yaml)
+```
+
+#### 4. Ejecutar tu servidor
+
+```bash
+uvicorn server:app
+# Ahora usa Temporal para ejecución confiable!
+```
 
 ### Beneficios de Temporal
 
-- **Tolerancia a Fallos**: Las tareas se reintentan automáticamente en caso de fallo
-- **Durabilidad**: El estado se persiste, las tareas pueden continuar después de reinicios
-- **Escalabilidad**: Distribuye la carga entre múltiples workers
+- **Tolerancia a Fallos**: Las tareas se reintentan automáticamente
+- **Durabilidad**: El estado persiste, continúa después de reinicios
+- **Escalabilidad**: Distribuye carga entre múltiples workers
 - **Observabilidad**: UI integrada para monitorear ejecuciones
 
 ### Configuración de Workers

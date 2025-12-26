@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 class TemporalConfig(BaseModel):
     """Temporal configuration."""
 
+    enabled: bool = Field(default=False, description="Enable Temporal integration (requires temporalio package)")
     address: str = Field(default="localhost:7233", description="Temporal server address")
     namespace_endpoint: str | None = Field(default=None, description="Temporal Cloud namespace endpoint")
     namespace: str = Field(default="default", description="Temporal namespace")
@@ -86,6 +87,8 @@ class OliveConfig(BaseModel):
         config = cls()
 
         # Temporal settings
+        if enabled := os.getenv("OLIVE_TEMPORAL_ENABLED"):
+            config.temporal.enabled = enabled.lower() in {"1", "true", "yes"}
         if address := os.getenv("OLIVE_TEMPORAL_ADDRESS"):
             config.temporal.address = address
         if namespace_endpoint := os.getenv("OLIVE_TEMPORAL_NAMESPACE_ENDPOINT"):
@@ -134,6 +137,8 @@ class OliveConfig(BaseModel):
         env_config = self.from_env()
 
         # Only override if env vars are set
+        if os.getenv("OLIVE_TEMPORAL_ENABLED"):
+            self.temporal.enabled = env_config.temporal.enabled
         if os.getenv("OLIVE_TEMPORAL_ADDRESS"):
             self.temporal.address = env_config.temporal.address
         if os.getenv("OLIVE_TEMPORAL_NAMESPACE_ENDPOINT"):

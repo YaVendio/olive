@@ -5,16 +5,36 @@ import threading
 from unittest import mock
 
 import pytest
-from temporalio import activity, workflow
-from temporalio.client import Client
-from temporalio.worker import Worker
+
+# Check if Temporal is available
+try:
+    from temporalio import activity, workflow
+    from temporalio.client import Client
+    from temporalio.worker import Worker
+    from olive.temporal.activities import create_activity_from_tool
+    from olive.temporal.worker import TemporalWorker
+    from olive.temporal.workflows import OliveToolWorkflow
+    TEMPORAL_AVAILABLE = True
+except ImportError:
+    TEMPORAL_AVAILABLE = False
+    # Create dummy objects for type checking
+    activity = None  # type: ignore
+    workflow = None  # type: ignore
+    Client = None  # type: ignore
+    Worker = None  # type: ignore
+    create_activity_from_tool = None  # type: ignore
+    TemporalWorker = None  # type: ignore
+    OliveToolWorkflow = None  # type: ignore
 
 from olive.config import OliveConfig, TemporalConfig
 from olive.registry import _registry
 from olive.schemas import ToolInfo
-from olive.temporal.activities import create_activity_from_tool
-from olive.temporal.worker import TemporalWorker
-from olive.temporal.workflows import OliveToolWorkflow
+
+# Skip all tests in this module if Temporal not installed
+pytestmark = pytest.mark.skipif(
+    not TEMPORAL_AVAILABLE,
+    reason="Temporal not installed (pip install olive[temporal])"
+)
 
 
 def test_create_activity_from_tool_sync():
