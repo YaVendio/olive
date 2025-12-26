@@ -109,6 +109,19 @@ class TemporalWorker:
         """Thread target for running the worker."""
         asyncio.run(self._run_worker())
 
+    async def check_connection(self) -> bool:
+        """Check if Temporal server is accessible.
+        
+        Returns:
+            True if connection successful, False otherwise.
+        """
+        try:
+            # Try to get client (will fail if Temporal not available)
+            await self._get_client()
+            return True
+        except Exception:
+            return False
+
     def start_background(self):
         """Start the worker in a background thread."""
         if self._worker_thread is None or not self._worker_thread.is_alive():

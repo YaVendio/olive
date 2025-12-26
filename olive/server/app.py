@@ -1,5 +1,6 @@
 """FastAPI app factory for Olive."""
 
+import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -8,6 +9,8 @@ from fastapi import FastAPI
 from olive.config import OliveConfig
 from olive.router import router, set_temporal_worker
 from olive.temporal.worker import TemporalWorker
+
+logger = logging.getLogger(__name__)
 
 # Global worker instance
 _worker: TemporalWorker | None = None
@@ -26,11 +29,31 @@ async def lifespan(app: FastAPI):
     # Startup
     global _worker
     config = getattr(app.state, "config", OliveConfig())
-    _worker = TemporalWorker(config)
-    _worker.start_background()
-
-    # Set the worker on the router for v1 mode
-    set_temporal_worker(_worker)
+    
+    # Try to start Temporal worker, but gracefully fall back if unavailable
+    try:
+        _worker = TemporalWorker(config)
+        
+        # Check if Temporal is available before starting background thread
+        if await _worker.check_connection():
+            _worker.start_background()
+            set_temporal_worker(_worker)
+            logger.info("✅ Temporal worker started - tools will execute with retry/durability")
+        else:
+            logger.info(
+                "⚠️  Temporal server not available, using direct execution mode. "
+                "Tools will work but without retry/durability features."
+            )
+            _worker = None
+            set_temporal_worker(None)
+    except Exception as e:
+        logger.info(
+            "⚠️  Could not start Temporal worker, using direct execution mode. "
+            "Tools will work but without retry/durability features. "
+            f"(Reason: {type(e).__name__})"
+        )
+        _worker = None
+        set_temporal_worker(None)
 
     yield
 
