@@ -4,7 +4,7 @@ version = "1.3.4"
 description = "Minimal framework for exposing FastAPI endpoints as LangChain tools"
 authors = [{ name = "YaVendio", email = "t@yavendio.com" }]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -16,13 +16,12 @@ dependencies = [
     "fastapi>=0.115.0",
     "pydantic>=2.10.0",
     "httpx>=0.27.0",
-    "langchain-core>=0.3.0,<1.0.0",
+    "langchain-core>=0.3.0",
     "typer>=0.15.0",
     "rich>=13.10.0",
     "pyyaml>=6.0",
     "pytest>=8.4.1",
     "uvicorn[standard]>=0.32.0",
-    "packaging>=23.2,<25",
 ]
 
 [project.urls]
