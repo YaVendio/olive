@@ -165,3 +165,5 @@ def test_tool_error_handling_without_temporal():
     assert "Intentional error" in data["error"]
 
     _registry._tools.clear()
+
+
