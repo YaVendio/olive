@@ -10,6 +10,17 @@ from olive import olive_tool
 from olive.router import set_temporal_worker
 from olive.server import create_app
 
+# Check if Temporal is available
+try:
+    import temporalio
+
+    TEMPORAL_AVAILABLE = True
+except ImportError:
+    TEMPORAL_AVAILABLE = False
+
+# Skip all tests in this module if Temporal not installed
+pytestmark = pytest.mark.skipif(not TEMPORAL_AVAILABLE, reason="Temporal not installed (pip install olive[temporal])")
+
 
 # Create test tools
 @olive_tool

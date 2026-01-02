@@ -1,15 +1,15 @@
 [project]
 name = "olive"
 version = "1.3.4"
-description = "Minimal framework for exposing FastAPI endpoints as LangChain tools with Temporal"
+description = "Minimal framework for exposing FastAPI endpoints as LangChain tools"
 authors = [{ name = "YaVendio", email = "t@yavendio.com" }]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12,<4.0"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
@@ -17,11 +17,11 @@ dependencies = [
     "pydantic>=2.10.0",
     "httpx>=0.27.0",
     "langchain-core>=0.3.0",
-    "temporalio>=1.7.0",
     "typer>=0.15.0",
     "rich>=13.10.0",
     "pyyaml>=6.0",
     "pytest>=8.4.1",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [project.urls]
@@ -30,14 +30,19 @@ dependencies = [
 "Bug Reports" = "https://github.com/YaVendio/olive/issues"
 
 [project.optional-dependencies]
+temporal = [
+    "temporalio>=1.7.0",
+]
 dev = [
     "ruff>=0.8.0",
     "basedpyright>=1.21.0",
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
-    "uvicorn[standard]>=0.32.0",
     "pre-commit>=4.0.0",
+]
+all = [
+    "temporalio>=1.7.0",
 ]
 
 [project.scripts]
@@ -69,7 +74,7 @@ ignore = ["E501"]
 known-first-party = ["olive", "olive_client"]
 
 [tool.basedpyright]
-pythonVersion = "3.13"
+pythonVersion = "3.12"
 pythonPlatform = "Linux"
 typeCheckingMode = "standard"
 useLibraryCodeForTypes = true
