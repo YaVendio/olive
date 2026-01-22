@@ -212,7 +212,7 @@ temporal:
   address: localhost:7233
   namespace: default
   task_queue: olive-tools
-  
+
   # Temporal Cloud (production)
   cloud_namespace: prod.your-namespace
   cloud_api_key: ${TEMPORAL_CLOUD_API_KEY}
@@ -283,15 +283,15 @@ from olive_client import OliveClient
 async with OliveClient("http://your-server.com") as client:
     # List all tools
     tools = await client.get_tools()
-    
+
     # Call tool directly
     result = await client.call_tool("my_tool", {"arg": "value"})
-    
+
     # Filter specific tools
     langchain_tools = await client.as_langchain_tools(
         tool_names=["tool1", "tool2"]
     )
-    
+
     # ElevenLabs format
     elevenlabs_tools = await client.as_elevenlabs_tools()
 ```
@@ -346,7 +346,7 @@ agent = create_react_agent(model, tools=all_tools)
 ```python
 class OliveClient:
     def __init__(self, base_url: str, timeout: float = 30.0)
-    
+
     async def get_tools(self) -> list[dict]
     async def call_tool(self, tool_name: str, arguments: dict) -> Any
     async def as_langchain_tools(self, tool_names: list[str] = None) -> list[StructuredTool]

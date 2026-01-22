@@ -69,10 +69,10 @@ from langgraph.prebuilt import create_react_agent
 
 async with OliveClient("http://localhost:8000") as client:
     tools = await client.as_langchain_tools()
-    
+
     model = ChatAnthropic(model="claude-3-sonnet")
     agent = create_react_agent(model, tools=tools)
-    
+
     response = await agent.ainvoke({
         "messages": [("user", "Calculate tax on $1000")]
     })
