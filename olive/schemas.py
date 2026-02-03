@@ -28,6 +28,9 @@ class ToolInfo(BaseModel):
     # Context injections (parameters excluded from input_schema and filled from configurable)
     injections: list["ToolInjection"] = Field(default_factory=list)
 
+    # Tool profiles for filtering (e.g., ["JAVI", "CLAMY"])
+    profiles: list[str] = Field(default_factory=list)
+
 
 class ToolInjection(BaseModel):
     """Descriptor for parameters injected from runtime configurable context."""
