@@ -336,8 +336,7 @@ class OliveClient:
                 from langchain.tools import ToolRuntime  # type: ignore[import-not-found,no-redef] # noqa: F401
             except ImportError:
                 raise ImportError(
-                    "langgraph is required for as_langgraph_tools(). "
-                    "Install it with: pip install langgraph"
+                    "langgraph is required for as_langgraph_tools(). Install it with: pip install langgraph"
                 ) from None
 
         # Reserved parameter names that conflict with LangChain internals
@@ -356,11 +355,7 @@ class OliveClient:
 
             # Build injection mapping: param -> config_key
             injection_map = {inj["param"]: inj["config_key"] for inj in injections}
-            required_injections = {
-                inj["param"]: inj["config_key"]
-                for inj in injections
-                if inj.get("required", True)
-            }
+            required_injections = {inj["param"]: inj["config_key"] for inj in injections if inj.get("required", True)}
             injected_params = set(injection_map.keys())
 
             # Build args schema excluding injected params
@@ -453,10 +448,10 @@ class OliveClient:
                     # Empty dict {} means "no context", while None means "use default fallback".
                     return await self.call_tool(tool_name_, kwargs, context=olive_context)
 
-                # Set function metadata
-                bound_acall.__name__ = tool_name_
-                bound_acall.__doc__ = f"Execute {tool_name_} with context injection from ToolRuntime."
-                return bound_acall
+                # Set function metadata (noqa: B023 - bound_acall is local, not a loop var)
+                bound_acall.__name__ = tool_name_  # noqa: B023
+                bound_acall.__doc__ = f"Execute {tool_name_} with context injection from ToolRuntime."  # noqa: B023
+                return bound_acall  # noqa: B023
 
             # Create the async callable with captured values
             bound_acall = make_bound_acall(tool_name, injection_map, required_injections)
