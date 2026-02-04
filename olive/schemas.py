@@ -3,7 +3,7 @@
 import inspect
 import types
 from collections.abc import Callable
-from typing import Annotated, Any, Union, get_args, get_origin, get_type_hints
+from typing import Annotated, Any, Literal, Union, get_args, get_origin, get_type_hints
 
 from pydantic import BaseModel, Field
 from pydantic.fields import FieldInfo
@@ -208,6 +208,24 @@ def python_type_to_json_schema(py_type: Any) -> dict[str, Any]:
         if len(args) > 1:
             dict_schema["additionalProperties"] = python_type_to_json_schema(args[1])
         return dict_schema
+
+    # Handle Literal types - convert to enum
+    if origin is Literal:
+        literal_values = args or getattr(py_type, "__args__", ())
+        if literal_values:
+            # Infer JSON type from first value
+            first_val = literal_values[0]
+            if isinstance(first_val, str):
+                return {"type": "string", "enum": list(literal_values)}
+            if isinstance(first_val, int) and not isinstance(first_val, bool):
+                return {"type": "integer", "enum": list(literal_values)}
+            if isinstance(first_val, float):
+                return {"type": "number", "enum": list(literal_values)}
+            if isinstance(first_val, bool):
+                return {"type": "boolean", "enum": list(literal_values)}
+            # Mixed types - just use enum without type
+            return {"enum": list(literal_values)}
+        return {"type": "string"}  # Empty Literal fallback
 
     if origin is Union or isinstance(py_type, types.UnionType):
         # Handle Optional[T] or union including None
