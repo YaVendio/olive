@@ -338,7 +338,7 @@ class OliveClient:
                 raise ImportError(
                     "langgraph is required for as_langgraph_tools(). "
                     "Install it with: pip install langgraph"
-                )
+                ) from None
 
         # Reserved parameter names that conflict with LangChain internals
         RESERVED_NAMES = {"config", "runtime"}
@@ -367,11 +367,12 @@ class OliveClient:
             properties = tool_info.get("input_schema", {}).get("properties", {})
             required = set(tool_info.get("input_schema", {}).get("required", []))
 
-            # Validate no reserved names
-            for prop_name in properties:
-                if prop_name in RESERVED_NAMES:
+            # Validate no reserved names in properties OR injected params
+            all_param_names = set(properties.keys()) | injected_params
+            for param_name in all_param_names:
+                if param_name in RESERVED_NAMES:
                     raise ValueError(
-                        f"Tool '{tool_name}' has reserved parameter '{prop_name}'. "
+                        f"Tool '{tool_name}' has reserved parameter '{param_name}'. "
                         "Rename it to avoid conflicts with LangChain internals."
                     )
 

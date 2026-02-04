@@ -120,7 +120,7 @@ export default defineConfig({
 
 **Step 5: Create .gitignore**
 
-```
+```gitignore
 node_modules/
 dist/
 *.log
@@ -1129,11 +1129,11 @@ git commit -m "docs: complete README documentation"
 |------|-------------|-------|
 | 1 | Initialize repository | package.json, tsconfig.json, tsup.config.ts, .gitignore, README.md |
 | 2 | Define types | src/types.ts |
-| 3 | Schema converter | src/schema.ts, src/__tests__/schema.test.ts |
-| 4 | OliveClient core | src/client.ts, src/__tests__/client.test.ts |
-| 5 | Vercel AI tools | src/client.ts (modify), src/__tests__/tools.test.ts |
-| 6 | Package exports | src/index.ts |
-| 7 | Integration test | src/__tests__/integration.test.ts |
+| 3 | Schema converter | `src/schema.ts`, `src/__tests__/schema.test.ts` |
+| 4 | OliveClient core | `src/client.ts`, `src/__tests__/client.test.ts` |
+| 5 | Vercel AI tools | `src/client.ts` (modify), `src/__tests__/tools.test.ts` |
+| 6 | Package exports | `src/index.ts` |
+| 7 | Integration test | `src/__tests__/integration.test.ts` |
 | 8 | Documentation | README.md |
 
 **Total estimated commits:** 8
