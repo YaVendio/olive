@@ -1,6 +1,7 @@
 """Olive tool decorator for marking functions as tools."""
 
 import logging
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -8,6 +9,8 @@ from olive.registry import _registry
 from olive.schemas import ToolInfo, extract_schema_from_function
 
 logger = logging.getLogger(__name__)
+
+IGNORE_WARNINGS = os.environ.get("OLIVE_IGNORE_WARNINGS", "").lower() in ("1", "true", "yes")
 
 
 def olive_tool[T: Callable](
@@ -50,7 +53,7 @@ def olive_tool[T: Callable](
         tool_description = description or (f.__doc__ or "").strip().split("\n")[0] or f"Tool: {tool_name}"
 
         # Warn if no profiles specified - tool won't appear in profile-filtered queries
-        if not profiles:
+        if not profiles and not IGNORE_WARNINGS:
             logger.warning(
                 f"Tool '{tool_name}' registered without profiles. "
                 "It will not appear when filtering by profile. "
