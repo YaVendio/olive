@@ -22,16 +22,33 @@ router = APIRouter()
 
 
 @router.get("/tools")
-async def list_tools() -> list[dict[str, Any]]:
-    """List all registered Olive tools."""
+async def list_tools(profile: str | None = None) -> list[dict[str, Any]]:
+    """List all registered Olive tools.
+
+    Args:
+        profile: Optional profile name to filter tools by (e.g., "javi", "clamy").
+                 Comparison is case-insensitive.
+    """
     tools = []
+    # Normalize profile to lowercase for case-insensitive comparison
+    profile_lower = profile.lower() if profile else None
+
     for tool_info in _registry.list_all():
+        # Filter by profile if specified (case-insensitive)
+        tool_profiles = getattr(tool_info, "profiles", [])
+        if profile_lower and profile_lower not in [p.lower() for p in tool_profiles]:
+            continue
+
         tool_data = {
             "name": tool_info.name,
             "description": tool_info.description,
             "input_schema": tool_info.input_schema,
             "output_schema": tool_info.output_schema,
         }
+
+        # Add profiles metadata
+        if tool_profiles:
+            tool_data["profiles"] = tool_profiles
 
         # Add temporal metadata if running in v1 mode
         if _temporal_worker is not None:

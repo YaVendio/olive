@@ -110,4 +110,6 @@ dev = [
     "pre-commit>=4.3.0",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
+    "langgraph>=0.2.0",
+    "basedpyright>=1.31.6",
 ]
