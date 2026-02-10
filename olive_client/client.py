@@ -148,7 +148,15 @@ class OliveClient:
                 elif field_info.get("type") == "boolean":
                     field_type = bool
                 elif field_info.get("type") == "array":
-                    field_type = list[Any]
+                    items_type = field_info.get("items", {}).get("type")
+                    if items_type == "string":
+                        field_type = list[str]
+                    elif items_type == "integer":
+                        field_type = list[int]
+                    elif items_type == "number":
+                        field_type = list[float]
+                    else:
+                        field_type = list[Any]
                 elif field_info.get("type") == "object":
                     field_type = dict[str, Any]
 
@@ -232,7 +240,15 @@ class OliveClient:
                 elif field_info.get("type") == "boolean":
                     field_type = bool
                 elif field_info.get("type") == "array":
-                    field_type = list[Any]
+                    items_type = field_info.get("items", {}).get("type")
+                    if items_type == "string":
+                        field_type = list[str]
+                    elif items_type == "integer":
+                        field_type = list[int]
+                    elif items_type == "number":
+                        field_type = list[float]
+                    else:
+                        field_type = list[Any]
                 elif field_info.get("type") == "object":
                     field_type = dict[str, Any]
 
@@ -388,7 +404,15 @@ class OliveClient:
                 elif json_type == "boolean":
                     field_type = bool
                 elif json_type == "array":
-                    field_type = list[Any]
+                    items_type = field_info.get("items", {}).get("type")
+                    if items_type == "string":
+                        field_type = list[str]
+                    elif items_type == "integer":
+                        field_type = list[int]
+                    elif items_type == "number":
+                        field_type = list[float]
+                    else:
+                        field_type = list[Any]
                 elif json_type == "object":
                     field_type = dict[str, Any]
 
