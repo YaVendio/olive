@@ -79,33 +79,34 @@ def dev(
     port = config.server.port
     reload = config.server.reload
 
-    # Check and start Temporal if needed
+    # Check and start Temporal if enabled
     temporal_address = config.temporal.address
+    temporal_process = None
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        # Check Temporal
-        task = progress.add_task("[cyan]Checking Temporal server...", total=None)
+    if config.temporal.enabled:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            # Check Temporal
+            task = progress.add_task("[cyan]Checking Temporal server...", total=None)
 
-        temporal_process = None
-        if not check_temporal_running(temporal_address):
-            progress.update(task, description="[yellow]Starting local Temporal server...")
-            temporal_process = start_temporal_dev_server()
+            if not check_temporal_running(temporal_address):
+                progress.update(task, description="[yellow]Starting local Temporal server...")
+                temporal_process = start_temporal_dev_server()
 
-            # Wait for Temporal to start
-            for _ in range(30):  # 30 second timeout
-                if check_temporal_running(temporal_address):
-                    break
-                asyncio.run(asyncio.sleep(1))
-            else:
-                console.print("[red]❌ Failed to start Temporal server![/red]")
-                raise typer.Exit(1)
+                # Wait for Temporal to start
+                for _ in range(30):  # 30 second timeout
+                    if check_temporal_running(temporal_address):
+                        break
+                    asyncio.run(asyncio.sleep(1))
+                else:
+                    console.print("[red]❌ Failed to start Temporal server![/red]")
+                    raise typer.Exit(1)
 
-        progress.update(task, description="[green]✓ Temporal server ready!")
-        progress.remove_task(task)
+            progress.update(task, description="[green]✓ Temporal server ready!")
+            progress.remove_task(task)
 
     # Display startup info
     table = Table(title="🫒 Olive Configuration", show_header=False, box=None)
@@ -113,7 +114,10 @@ def dev(
     table.add_column("Value", style="green")
 
     table.add_row("FastAPI", f"http://{host}:{port}")
-    table.add_row("Temporal", f"{temporal_address}")
+    if config.temporal.enabled:
+        table.add_row("Temporal", f"{temporal_address}")
+    else:
+        table.add_row("Temporal", "Disabled")
     table.add_row("Hot Reload", "✓ Enabled" if reload else "✗ Disabled")
     table.add_row("Docs", f"http://{host}:{port}/docs")
 
@@ -122,10 +126,11 @@ def dev(
 
     worker: TemporalWorker | None = None
     try:
-        # Start worker in background thread
-        console.print("[cyan]Starting Temporal worker...[/cyan]")
-        worker = TemporalWorker(config)
-        worker.start_background()
+        # Start worker in background thread (only if Temporal is enabled)
+        if config.temporal.enabled:
+            console.print("[cyan]Starting Temporal worker...[/cyan]")
+            worker = TemporalWorker(config)
+            worker.start_background()
 
         # Start FastAPI
         console.print("[cyan]Starting FastAPI server...[/cyan]")
@@ -208,18 +213,22 @@ def serve(
     table.add_column("Value", style="blue")
 
     table.add_row("FastAPI", f"http://{host}:{port}")
-    table.add_row("Temporal", config.temporal.address)
-    table.add_row("Namespace", config.temporal.namespace)
+    if config.temporal.enabled:
+        table.add_row("Temporal", config.temporal.address)
+        table.add_row("Namespace", config.temporal.namespace)
+    else:
+        table.add_row("Temporal", "Disabled")
 
     console.print(table)
     console.print()
 
     worker: TemporalWorker | None = None
     try:
-        # Start worker
-        console.print("[cyan]Starting Temporal worker...[/cyan]")
-        worker = TemporalWorker(config)
-        worker.start_background()
+        # Start worker (only if Temporal is enabled)
+        if config.temporal.enabled:
+            console.print("[cyan]Starting Temporal worker...[/cyan]")
+            worker = TemporalWorker(config)
+            worker.start_background()
 
         # Start FastAPI
         console.print("[cyan]Starting FastAPI server...[/cyan]")
