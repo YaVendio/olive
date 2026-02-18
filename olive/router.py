@@ -211,7 +211,9 @@ async def call_tool(request: Request, tool_request: ToolCallRequest) -> ToolCall
     # Get the tool
     tool_info = _registry.get(tool_request.tool_name)
     if not tool_info:
-        return ToolCallResponse(success=False, error=f"Tool '{tool_request.tool_name}' not found", error_type="tool_not_found")
+        return ToolCallResponse(
+            success=False, error=f"Tool '{tool_request.tool_name}' not found", error_type="tool_not_found"
+        )
 
     try:
         logger.info(
@@ -318,7 +320,7 @@ async def call_tool(request: Request, tool_request: ToolCallRequest) -> ToolCall
                     loop.run_in_executor(None, lambda: func(**final_args)),
                     timeout=timeout,
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("Tool '%s' timed out after %ds", tool_request.tool_name, timeout)
             return ToolCallResponse(
                 success=False,
