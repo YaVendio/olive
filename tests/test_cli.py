@@ -19,7 +19,7 @@ from olive.cli import (
     start_temporal_dev_server,
     version,
 )
-from olive.config import OliveConfig
+from olive.config import OliveConfig, TemporalConfig
 
 runner = CliRunner()
 
@@ -85,8 +85,6 @@ def test_init_command(tmp_path):
 
 def _temporal_enabled_config(**overrides):
     """Return an OliveConfig with temporal explicitly enabled."""
-    from olive.config import TemporalConfig
-
     temporal_kwargs = {"enabled": True, **overrides}
     return OliveConfig(temporal=TemporalConfig(**temporal_kwargs))
 
