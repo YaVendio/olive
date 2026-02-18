@@ -14,7 +14,7 @@ try:
 
     from olive.temporal.activities import create_activity_from_tool
     from olive.temporal.worker import TemporalWorker
-    from olive.temporal.workflows import OliveToolWorkflow
+    from olive.temporal.workflows import OliveToolInput, OliveToolWorkflow
 
     TEMPORAL_AVAILABLE = True
 except ImportError:
@@ -27,6 +27,7 @@ except ImportError:
     create_activity_from_tool = None  # type: ignore
     TemporalWorker = None  # type: ignore
     OliveToolWorkflow = None  # type: ignore
+    OliveToolInput = None  # type: ignore
 
 from olive.config import OliveConfig, TemporalConfig
 from olive.registry import _registry
@@ -94,7 +95,7 @@ async def test_create_activity_from_tool_async():
 
 @pytest.mark.asyncio
 async def test_olive_tool_workflow():
-    """Test the OliveToolWorkflow."""
+    """Test the OliveToolWorkflow with OliveToolInput."""
     # Mock the activity context
     with mock.patch("olive.temporal.workflows.workflow.execute_activity") as mock_execute:
         mock_execute.return_value = {"result": "success"}
@@ -102,8 +103,9 @@ async def test_olive_tool_workflow():
         # Create workflow instance
         workflow_instance = OliveToolWorkflow()
 
-        # Run the workflow
-        result = await workflow_instance.run("test_tool", {"arg": "value"})
+        # Run the workflow with OliveToolInput
+        input_data = OliveToolInput(tool_name="test_tool", arguments={"arg": "value"})
+        result = await workflow_instance.run(input_data)
 
         # Verify
         assert result == {"result": "success"}
@@ -115,6 +117,30 @@ async def test_olive_tool_workflow():
         assert call_args[0][1] == {"arg": "value"}  # arguments
 
 
+@pytest.mark.asyncio
+async def test_olive_tool_workflow_custom_config():
+    """Test that OliveToolWorkflow uses custom timeout and retry from input."""
+    from datetime import timedelta
+
+    with mock.patch("olive.temporal.workflows.workflow.execute_activity") as mock_execute:
+        mock_execute.return_value = "ok"
+
+        workflow_instance = OliveToolWorkflow()
+        input_data = OliveToolInput(
+            tool_name="test_tool",
+            arguments={},
+            timeout_seconds=600,
+            retry_policy={"max_attempts": 5, "initial_interval": 2, "maximum_interval": 30},
+        )
+        await workflow_instance.run(input_data)
+
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["start_to_close_timeout"] == timedelta(seconds=600)
+        assert call_kwargs["retry_policy"].maximum_attempts == 5
+        assert call_kwargs["retry_policy"].initial_interval == timedelta(seconds=2)
+        assert call_kwargs["retry_policy"].maximum_interval == timedelta(seconds=30)
+
+
 def test_temporal_worker_init():
     """Test TemporalWorker initialization."""
     config = OliveConfig()
@@ -124,7 +150,8 @@ def test_temporal_worker_init():
     assert worker._client is None
     assert worker._worker is None
     assert worker._worker_thread is None
-    assert isinstance(worker._stop_event, threading.Event)
+    assert isinstance(worker._stop_requested, threading.Event)
+    assert worker._async_stop_event is None
 
 
 @pytest.mark.asyncio
@@ -146,7 +173,7 @@ async def test_temporal_worker_get_client():
 
 @pytest.mark.asyncio
 async def test_temporal_worker_execute_tool():
-    """Test TemporalWorker execute_tool method."""
+    """Test TemporalWorker execute_tool method with OliveToolInput."""
     config = OliveConfig()
     worker = TemporalWorker(config)
 
@@ -163,11 +190,37 @@ async def test_temporal_worker_execute_tool():
     assert result == {"result": "success"}
     mock_client.execute_workflow.assert_called_once()
 
-    # Check workflow arguments
+    # Check workflow arguments — should pass OliveToolInput
     call_args = mock_client.execute_workflow.call_args
     assert call_args[0][0] == OliveToolWorkflow.run
-    assert call_args[1]["args"] == ["test_tool", {"arg": "value"}]
+    input_data = call_args[1]["args"][0]
+    assert isinstance(input_data, OliveToolInput)
+    assert input_data.tool_name == "test_tool"
+    assert input_data.arguments == {"arg": "value"}
     assert call_args[1]["task_queue"] == config.temporal.task_queue
+
+
+@pytest.mark.asyncio
+async def test_temporal_worker_execute_tool_passes_config():
+    """Test that execute_tool passes custom timeout/retry to OliveToolInput."""
+    config = OliveConfig()
+    worker = TemporalWorker(config)
+
+    mock_client = mock.Mock(spec=Client)
+    worker._client = mock_client
+    mock_client.execute_workflow = mock.AsyncMock(return_value="ok")
+
+    await worker.execute_tool(
+        "my_tool",
+        {"x": 1},
+        timeout_seconds=600,
+        retry_policy={"max_attempts": 5},
+    )
+
+    call_args = mock_client.execute_workflow.call_args
+    input_data = call_args[1]["args"][0]
+    assert input_data.timeout_seconds == 600
+    assert input_data.retry_policy == {"max_attempts": 5}
 
 
 @pytest.mark.asyncio
@@ -220,8 +273,8 @@ def test_temporal_worker_stop():
     # Stop the worker
     worker.stop()
 
-    # Verify stop event was set
-    assert worker._stop_event.is_set()
+    # Verify stop was requested
+    assert worker._stop_requested.is_set()
 
     # Verify thread was joined
     mock_thread.join.assert_called_once_with(timeout=5)
@@ -234,7 +287,7 @@ def test_temporal_worker_stop_no_thread():
 
     # Should not raise any errors
     worker.stop()
-    assert worker._stop_event.is_set()
+    assert worker._stop_requested.is_set()
 
 
 @pytest.mark.asyncio
@@ -274,10 +327,12 @@ async def test_temporal_worker_run_worker():
             with mock.patch("concurrent.futures.ThreadPoolExecutor"):
                 mock_worker_class.return_value = mock_temporal_worker
 
-                # Set stop event after a short delay
+                # Set async stop event after a short delay
                 async def stop_after_delay():
                     await asyncio.sleep(0.1)
-                    worker._stop_event.set()
+                    # The _async_stop_event is created inside _run_worker
+                    if worker._async_stop_event is not None:
+                        worker._async_stop_event.set()
 
                 # Run worker and stop task concurrently
                 await asyncio.gather(worker._run_worker(), stop_after_delay())
@@ -291,3 +346,33 @@ async def test_temporal_worker_run_worker():
 
     # Clean up
     _registry._tools.pop("test_tool", None)
+
+
+def test_workflow_id_uses_uuid():
+    """Workflow IDs should contain a UUID, not a timestamp."""
+    import re
+
+    config = OliveConfig()
+    worker = TemporalWorker(config)
+
+    mock_client = mock.Mock(spec=Client)
+    worker._client = mock_client
+    mock_client.execute_workflow = mock.AsyncMock(return_value="ok")
+    mock_client.start_workflow = mock.AsyncMock()
+    mock_handle = mock.Mock()
+    mock_handle.id = "olive-tool-test-uuid"
+    mock_client.start_workflow.return_value = mock_handle
+
+    uuid_pattern = re.compile(r"olive-tool-\w+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+    # Check execute_tool
+    asyncio.run(worker.execute_tool("test", {}))
+    call_args = mock_client.execute_workflow.call_args
+    workflow_id = call_args[1]["id"]
+    assert uuid_pattern.match(workflow_id), f"ID doesn't contain UUID: {workflow_id}"
+
+    # Check start_tool
+    asyncio.run(worker.start_tool("test", {}))
+    call_args = mock_client.start_workflow.call_args
+    workflow_id = call_args[1]["id"]
+    assert uuid_pattern.match(workflow_id), f"ID doesn't contain UUID: {workflow_id}"

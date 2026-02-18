@@ -1,6 +1,7 @@
 """Olive client implementation."""
 
 import types
+import warnings
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -41,6 +42,69 @@ class OliveClient:
     async def close(self):
         """Close the HTTP client."""
         await self._client.aclose()
+
+    @staticmethod
+    def _build_args_schema(
+        tool_name: str,
+        properties: dict[str, Any],
+        required: list[str] | set[str],
+        exclude_params: set[str] | None = None,
+    ) -> type:
+        """Build a dynamic Pydantic model from JSON Schema properties.
+
+        Args:
+            tool_name: Name of the tool (used in model name).
+            properties: JSON Schema ``properties`` dict.
+            required: Collection of required field names.
+            exclude_params: Optional set of parameter names to omit from the
+                schema (e.g. injected parameters).
+
+        Returns:
+            A dynamically created Pydantic model class.
+        """
+        required_set = set(required)
+        exclude = exclude_params or set()
+
+        field_definitions: dict[str, Any] = {}
+        for field_name, field_info in properties.items():
+            if field_name in exclude:
+                continue
+
+            field_type: Any = Any  # Default to Any
+
+            # Map JSON schema types to Python types
+            json_type = field_info.get("type")
+            if json_type == "string":
+                field_type = str
+            elif json_type == "integer":
+                field_type = int
+            elif json_type == "number":
+                field_type = float
+            elif json_type == "boolean":
+                field_type = bool
+            elif json_type == "array":
+                items_type = field_info.get("items", {}).get("type")
+                if items_type == "string":
+                    field_type = list[str]
+                elif items_type == "integer":
+                    field_type = list[int]
+                elif items_type == "number":
+                    field_type = list[float]
+                else:
+                    field_type = list[Any]
+            elif json_type == "object":
+                field_type = dict[str, Any]
+
+            # Handle optional fields and defaults
+            if field_name not in required_set:
+                if "default" in field_info:
+                    field_definitions[field_name] = (field_type, field_info["default"])
+                else:
+                    field_definitions[field_name] = (field_type | None, None)
+            else:
+                field_definitions[field_name] = (field_type, ...)
+
+        return create_model(f"{tool_name}_args", **field_definitions)
 
     async def get_tools(self, profile: str | None = None) -> list[dict[str, Any]]:
         """
@@ -132,45 +196,7 @@ class OliveClient:
             # Create args schema from input schema
             properties = tool_info["input_schema"].get("properties", {})
             required = tool_info["input_schema"].get("required", [])
-
-            # Create a Pydantic model dynamically
-            field_definitions = {}
-            for field_name, field_info in properties.items():
-                field_type = Any  # Default to Any
-
-                # Map JSON schema types to Python types
-                if field_info.get("type") == "string":
-                    field_type = str
-                elif field_info.get("type") == "integer":
-                    field_type = int
-                elif field_info.get("type") == "number":
-                    field_type = float
-                elif field_info.get("type") == "boolean":
-                    field_type = bool
-                elif field_info.get("type") == "array":
-                    items_type = field_info.get("items", {}).get("type")
-                    if items_type == "string":
-                        field_type = list[str]
-                    elif items_type == "integer":
-                        field_type = list[int]
-                    elif items_type == "number":
-                        field_type = list[float]
-                    else:
-                        field_type = list[Any]
-                elif field_info.get("type") == "object":
-                    field_type = dict[str, Any]
-
-                # Handle optional fields and defaults
-                if field_name not in required:
-                    if "default" in field_info:
-                        field_definitions[field_name] = (field_type, field_info["default"])
-                    else:
-                        field_definitions[field_name] = (field_type | None, None)
-                else:
-                    field_definitions[field_name] = (field_type, ...)
-
-            # Create the Pydantic model using create_model
-            ArgsSchema = create_model(f"{tool_name}_args", **field_definitions)
+            ArgsSchema = self._build_args_schema(tool_name, properties, required)
 
             # Bind tool name at definition time to avoid late-binding in closures
             async def bound_acall(__tool_name: str = tool_name, **kwargs: Any) -> Any:
@@ -215,6 +241,12 @@ class OliveClient:
             tool_names: Optional list of tool names to include.
             profile: Optional profile name to filter tools (e.g., "javi", "clamy").
         """
+        warnings.warn(
+            "as_langchain_tools_injecting() is deprecated. Use as_langgraph_tools() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         tools_info = await self.get_tools(profile=profile)
         if tool_names:
             tools_info = [t for t in tools_info if t["name"] in tool_names]
@@ -227,40 +259,7 @@ class OliveClient:
             # Build args schema excluding injected params (already excluded by server schema)
             properties = tool_info.get("input_schema", {}).get("properties", {})
             required = tool_info.get("input_schema", {}).get("required", [])
-
-            field_definitions = {}
-            for field_name, field_info in properties.items():
-                field_type = Any
-                if field_info.get("type") == "string":
-                    field_type = str
-                elif field_info.get("type") == "integer":
-                    field_type = int
-                elif field_info.get("type") == "number":
-                    field_type = float
-                elif field_info.get("type") == "boolean":
-                    field_type = bool
-                elif field_info.get("type") == "array":
-                    items_type = field_info.get("items", {}).get("type")
-                    if items_type == "string":
-                        field_type = list[str]
-                    elif items_type == "integer":
-                        field_type = list[int]
-                    elif items_type == "number":
-                        field_type = list[float]
-                    else:
-                        field_type = list[Any]
-                elif field_info.get("type") == "object":
-                    field_type = dict[str, Any]
-
-                if field_name not in required:
-                    if "default" in field_info:
-                        field_definitions[field_name] = (field_type, field_info["default"])
-                    else:
-                        field_definitions[field_name] = (field_type | None, None)
-                else:
-                    field_definitions[field_name] = (field_type, ...)
-
-            ArgsSchema = create_model(f"{tool_name}_args", **field_definitions)
+            ArgsSchema = self._build_args_schema(tool_name, properties, required)
 
             injections = tool_info.get("injections", [])
 
@@ -387,44 +386,7 @@ class OliveClient:
                         "Rename it to avoid conflicts with LangChain internals."
                     )
 
-            field_definitions: dict[str, Any] = {}
-            for field_name, field_info in properties.items():
-                # Skip injected params - they come from runtime.context
-                if field_name in injected_params:
-                    continue
-
-                field_type: Any = Any
-                json_type = field_info.get("type", "string")
-                if json_type == "string":
-                    field_type = str
-                elif json_type == "integer":
-                    field_type = int
-                elif json_type == "number":
-                    field_type = float
-                elif json_type == "boolean":
-                    field_type = bool
-                elif json_type == "array":
-                    items_type = field_info.get("items", {}).get("type")
-                    if items_type == "string":
-                        field_type = list[str]
-                    elif items_type == "integer":
-                        field_type = list[int]
-                    elif items_type == "number":
-                        field_type = list[float]
-                    else:
-                        field_type = list[Any]
-                elif json_type == "object":
-                    field_type = dict[str, Any]
-
-                if field_name not in required:
-                    if "default" in field_info:
-                        field_definitions[field_name] = (field_type, field_info["default"])
-                    else:
-                        field_definitions[field_name] = (field_type | None, None)
-                else:
-                    field_definitions[field_name] = (field_type, ...)
-
-            ArgsSchema = create_model(f"{tool_name}_args", **field_definitions)
+            ArgsSchema = self._build_args_schema(tool_name, properties, required, exclude_params=injected_params)
 
             # Create a factory function to properly capture loop variables by value.
             # This avoids the late-binding closure bug where all tools would reference

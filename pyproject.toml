@@ -1,6 +1,6 @@
 [project]
 name = "olive"
-version = "1.4.2"
+version = "1.5.0"
 description = "Minimal framework for exposing FastAPI endpoints as LangChain tools"
 authors = [{ name = "YaVendio", email = "t@yavendio.com" }]
 readme = "README.md"

@@ -54,6 +54,64 @@ def start_temporal_dev_server() -> subprocess.Popen[bytes] | None:
         return None
 
 
+def _run_server(
+    config: OliveConfig,
+    *,
+    app_path: str,
+    factory: bool,
+    reload: bool = False,
+) -> None:
+    """Shared server startup logic for dev and serve commands.
+
+    Starts the Temporal worker (if enabled), runs the FastAPI server via uvicorn,
+    and ensures cleanup on exit.
+
+    Args:
+        config: Olive configuration object.
+        app_path: Uvicorn import path for the app (e.g. "main:app").
+        factory: Whether app_path points to a factory function.
+        reload: Whether to enable uvicorn hot-reload.
+    """
+    import uvicorn
+
+    # Ensure local src/ is importable for app modules
+    try:
+        import sys
+
+        src_dir = Path.cwd() / "src"
+        if src_dir.exists() and str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+    except Exception:
+        pass
+
+    worker: TemporalWorker | None = None
+    try:
+        # Start worker in background thread (only if Temporal is enabled)
+        if config.temporal.enabled:
+            console.print("[cyan]Starting Temporal worker...[/cyan]")
+            worker = TemporalWorker(config)
+            worker.start_background()
+
+        # Start FastAPI
+        console.print("[cyan]Starting FastAPI server...[/cyan]")
+        console.print()
+
+        uvicorn.run(
+            app_path,
+            host=config.server.host,
+            port=config.server.port,
+            reload=reload,
+            factory=factory,
+        )
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]👋 Shutting down Olive...[/yellow]")
+    finally:
+        # Stop worker
+        if worker is not None:
+            worker.stop()
+
+
 @app.command()
 def dev(
     host: Annotated[str, typer.Option("--host", "-h", help="Host to bind to")] = "0.0.0.0",
@@ -124,54 +182,18 @@ def dev(
     console.print(table)
     console.print()
 
-    worker: TemporalWorker | None = None
+    # Prefer configured app path, but fall back to main.py if present for backwards compatibility
+    main_app_path = Path.cwd() / "main.py"
+    if main_app_path.exists():
+        app_path = "main:app"
+        factory = False
+    else:
+        app_path = config.server.app
+        factory = config.server.factory
+
     try:
-        # Start worker in background thread (only if Temporal is enabled)
-        if config.temporal.enabled:
-            console.print("[cyan]Starting Temporal worker...[/cyan]")
-            worker = TemporalWorker(config)
-            worker.start_background()
-
-        # Start FastAPI
-        console.print("[cyan]Starting FastAPI server...[/cyan]")
-        console.print()
-
-        import uvicorn
-
-        # Ensure local src/ is importable for app modules
-        try:
-            import sys
-
-            src_dir = Path.cwd() / "src"
-            if src_dir.exists() and str(src_dir) not in sys.path:
-                sys.path.insert(0, str(src_dir))
-        except Exception:
-            pass
-
-        # Prefer configured app path, but fall back to main.py if present for backwards compatibility
-        main_app_path = Path.cwd() / "main.py"
-        if main_app_path.exists():
-            app_path = "main:app"
-            factory = False
-        else:
-            app_path = config.server.app
-            factory = config.server.factory
-
-        uvicorn.run(
-            app_path,
-            host=host,
-            port=port,
-            reload=reload,
-            factory=factory,
-        )
-
-    except KeyboardInterrupt:
-        console.print("\n[yellow]👋 Shutting down Olive...[/yellow]")
+        _run_server(config, app_path=app_path, factory=factory, reload=reload)
     finally:
-        # Stop worker
-        if worker is not None:
-            worker.stop()
-
         # Stop Temporal server if we started it
         if temporal_process:
             console.print("[dim]Stopping Temporal server...[/dim]")
@@ -222,44 +244,7 @@ def serve(
     console.print(table)
     console.print()
 
-    worker: TemporalWorker | None = None
-    try:
-        # Start worker (only if Temporal is enabled)
-        if config.temporal.enabled:
-            console.print("[cyan]Starting Temporal worker...[/cyan]")
-            worker = TemporalWorker(config)
-            worker.start_background()
-
-        # Start FastAPI
-        console.print("[cyan]Starting FastAPI server...[/cyan]")
-        console.print()
-
-        import uvicorn
-
-        # Ensure local src/ is importable for app modules
-        try:
-            import sys
-
-            src_dir = Path.cwd() / "src"
-            if src_dir.exists() and str(src_dir) not in sys.path:
-                sys.path.insert(0, str(src_dir))
-        except Exception:
-            pass
-
-        app_path = config.server.app
-        uvicorn.run(
-            app_path,
-            host=host,
-            port=port,
-            factory=config.server.factory,
-        )
-
-    except KeyboardInterrupt:
-        console.print("\n[yellow]👋 Shutting down Olive...[/yellow]")
-    finally:
-        # Stop worker
-        if worker is not None:
-            worker.stop()
+    _run_server(config, app_path=config.server.app, factory=config.server.factory)
 
 
 @app.command()

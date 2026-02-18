@@ -5,6 +5,7 @@ import concurrent.futures
 import threading
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from temporalio.client import Client
 from temporalio.service import TLSConfig
@@ -13,7 +14,7 @@ from temporalio.worker import Worker
 from olive.config import OliveConfig
 from olive.registry import _registry
 from olive.temporal.activities import create_activity_from_tool
-from olive.temporal.workflows import OliveToolWorkflow
+from olive.temporal.workflows import OliveToolInput, OliveToolWorkflow
 
 
 class TemporalWorker:
@@ -24,7 +25,8 @@ class TemporalWorker:
         self._client: Client | None = None
         self._worker: Worker | None = None
         self._worker_thread: threading.Thread | None = None
-        self._stop_event = threading.Event()
+        self._async_stop_event: asyncio.Event | None = None
+        self._stop_requested = threading.Event()
 
     async def _get_client(self) -> Client:
         """Get or create Temporal client."""
@@ -104,10 +106,11 @@ class TemporalWorker:
                 activity_executor=activity_executor,
             )
 
-            # Run worker until stop event is set
+            # Block efficiently until shutdown is requested.
+            # asyncio.Event.set() is thread-safe in Python 3.12+.
+            self._async_stop_event = asyncio.Event()
             async with self._worker:
-                while not self._stop_event.is_set():
-                    await asyncio.sleep(0.1)
+                await self._async_stop_event.wait()
 
     def _worker_thread_target(self):
         """Thread target for running the worker."""
@@ -129,7 +132,7 @@ class TemporalWorker:
     def start_background(self):
         """Start the worker in a background thread."""
         if self._worker_thread is None or not self._worker_thread.is_alive():
-            self._stop_event.clear()
+            self._stop_requested.clear()
             self._worker_thread = threading.Thread(
                 target=self._worker_thread_target, daemon=True, name="olive-temporal-worker"
             )
@@ -137,43 +140,70 @@ class TemporalWorker:
 
     def stop(self):
         """Stop the worker."""
-        self._stop_event.set()
+        self._stop_requested.set()
+        if self._async_stop_event is not None:
+            self._async_stop_event.set()
         if self._worker_thread:
             self._worker_thread.join(timeout=5)
 
-    async def execute_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
+    async def execute_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        timeout_seconds: int = 300,
+        retry_policy: dict[str, Any] | None = None,
+    ) -> Any:
         """Execute a tool via Temporal workflow."""
         client = await self._get_client()
 
-        # Execute workflow
+        input_data = OliveToolInput(
+            tool_name=tool_name,
+            arguments=arguments,
+            timeout_seconds=timeout_seconds,
+            retry_policy=retry_policy or {},
+        )
+
         result = await client.execute_workflow(
             OliveToolWorkflow.run,
-            args=[tool_name, arguments],
-            id=f"olive-tool-{tool_name}-{asyncio.get_event_loop().time()}",
+            args=[input_data],
+            id=f"olive-tool-{tool_name}-{uuid4()}",
             task_queue=self.config.temporal.task_queue,
         )
 
         return result
 
-    async def start_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:
+    async def start_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        timeout_seconds: int = 300,
+        retry_policy: dict[str, Any] | None = None,
+    ) -> str:
         """Start tool workflow without waiting (fire-and-forget).
 
         Args:
             tool_name: Name of the tool to execute
             arguments: Tool arguments
+            timeout_seconds: Workflow timeout
+            retry_policy: Retry configuration
 
         Returns:
             Workflow ID (not the result)
         """
-        import time
-
         client = await self._get_client()
 
-        workflow_id = f"olive-tool-{tool_name}-{int(time.time() * 1000)}"
+        input_data = OliveToolInput(
+            tool_name=tool_name,
+            arguments=arguments,
+            timeout_seconds=timeout_seconds,
+            retry_policy=retry_policy or {},
+        )
+
+        workflow_id = f"olive-tool-{tool_name}-{uuid4()}"
 
         handle = await client.start_workflow(
             OliveToolWorkflow.run,
-            args=[tool_name, arguments],
+            args=[input_data],
             id=workflow_id,
             task_queue=self.config.temporal.task_queue,
         )

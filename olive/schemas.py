@@ -38,6 +38,7 @@ class ToolInjection(BaseModel):
     param: str
     config_key: str
     required: bool = True
+    expected_type: str | None = None
 
 
 class ToolCallRequest(BaseModel):
@@ -57,6 +58,7 @@ class ToolCallResponse(BaseModel):
     success: bool
     result: Any = None
     error: str | None = None
+    error_type: str | None = None
     metadata: dict[str, Any] | None = None
 
 
@@ -122,6 +124,8 @@ def extract_schema_from_function(func: Callable) -> tuple[dict[str, Any], dict[s
         if inject_meta is not None:
             # Record injection and skip adding to input schema
             inject_meta.param = param_name
+            json_schema = python_type_to_json_schema(base_type)
+            inject_meta.expected_type = json_schema.get("type")
             injections.append(inject_meta)
             continue
 

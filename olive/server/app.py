@@ -11,9 +11,6 @@ from olive.router import router, set_temporal_worker
 
 logger = logging.getLogger(__name__)
 
-# Global worker instance
-_worker: Any | None = None
-
 
 def _import_temporal_worker():
     """Lazily import TemporalWorker, raising clear error if not available."""
@@ -28,18 +25,9 @@ def _import_temporal_worker():
         ) from e
 
 
-def get_worker() -> Any:
-    """Get the global worker instance."""
-    if _worker is None:
-        raise RuntimeError("Worker not initialized")
-    return _worker
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage app lifecycle."""
-    # Startup
-    global _worker
     config = getattr(app.state, "config", OliveConfig())
 
     # Check if Temporal is enabled in config
@@ -54,11 +42,13 @@ async def lifespan(app: FastAPI):
             raise  # Fail startup with clear error
 
         # Try to connect
-        _worker = TemporalWorker(config)
-        if await _worker.check_connection():
-            _worker.start_background()
-            set_temporal_worker(_worker)
-            logger.info("✅ Temporal worker started successfully")
+        worker = TemporalWorker(config)
+        if await worker.check_connection():
+            worker.start_background()
+            app.state.temporal_worker = worker
+            # Also set the fallback for backward compat with code using set_temporal_worker()
+            set_temporal_worker(worker)
+            logger.info("Temporal worker started successfully")
         else:
             # Config says enabled, but server not reachable
             error_msg = (
@@ -70,14 +60,16 @@ async def lifespan(app: FastAPI):
     else:
         # Temporal disabled - direct execution mode
         logger.info("Temporal disabled, using direct execution mode")
-        _worker = None
+        app.state.temporal_worker = None
         set_temporal_worker(None)
 
     yield
 
     # Shutdown
-    if _worker:
-        _worker.stop()
+    worker = getattr(app.state, "temporal_worker", None)
+    if worker:
+        worker.stop()
+        app.state.temporal_worker = None
         set_temporal_worker(None)
 
 
@@ -88,8 +80,8 @@ def create_app(config: OliveConfig | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Olive Tool Server",
-        description="🫒 Expose Python functions as LangChain tools",
-        version="1.3.0",
+        description="Expose Python functions as LangChain tools",
+        version="1.5.0",
         lifespan=lifespan,
     )
 
@@ -104,12 +96,13 @@ def create_app(config: OliveConfig | None = None) -> FastAPI:
     async def root() -> dict[str, Any]:
         return {
             "name": "Olive Tool Server",
-            "version": "1.3.0",
+            "version": "1.5.0",
             "description": "Expose Python functions as LangChain tools",
             "endpoints": {
                 "tools": "/olive/tools",
                 "tools_elevenlabs": "/olive/tools/elevenlabs",
                 "call": "/olive/tools/call",
+                "health": "/olive/health",
                 "docs": "/docs",
             },
         }

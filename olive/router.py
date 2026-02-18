@@ -1,34 +1,56 @@
 """FastAPI router for Olive endpoints."""
 
 import asyncio
+import logging
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from olive.registry import _registry
 from olive.schemas import ToolCallRequest, ToolCallResponse
 
-# Global reference to Temporal worker (set by v1 mode)
-_temporal_worker: Any | None = None
+logger = logging.getLogger(__name__)
+
+# Type checks for validating injected context values
+_TYPE_CHECKS: dict[str, type | tuple[type, ...]] = {
+    "string": str,
+    "integer": int,
+    "number": (int, float),
+    "boolean": bool,
+    "array": list,
+    "object": dict,
+}
+
+
+def _get_temporal_worker(request: Request) -> Any | None:
+    """Get the temporal worker from app state."""
+    return getattr(request.app.state, "temporal_worker", None)
+
+
+# Backward-compat shim: some tests and external code may call set_temporal_worker().
+# Prefer setting app.state.temporal_worker directly in lifespan.
+_temporal_worker_fallback: Any | None = None
 
 
 def set_temporal_worker(worker: Any) -> None:
-    """Set the global Temporal worker for v1 mode."""
-    global _temporal_worker
-    _temporal_worker = worker
+    """Set the fallback Temporal worker reference (deprecated, use app.state instead)."""
+    global _temporal_worker_fallback
+    _temporal_worker_fallback = worker
 
 
 router = APIRouter()
 
 
 @router.get("/tools")
-async def list_tools(profile: str | None = None) -> list[dict[str, Any]]:
+async def list_tools(request: Request, profile: str | None = None) -> list[dict[str, Any]]:
     """List all registered Olive tools.
 
     Args:
         profile: Optional profile name to filter tools by (e.g., "javi", "clamy").
                  Comparison is case-insensitive.
     """
+    temporal_worker = _get_temporal_worker(request) or _temporal_worker_fallback
+
     tools = []
     # Normalize profile to lowercase for case-insensitive comparison
     profile_lower = profile.lower() if profile else None
@@ -51,7 +73,7 @@ async def list_tools(profile: str | None = None) -> list[dict[str, Any]]:
             tool_data["profiles"] = tool_profiles
 
         # Add temporal metadata if running in v1 mode
-        if _temporal_worker is not None:
+        if temporal_worker is not None:
             tool_data["temporal"] = {
                 "enabled": True,
                 "timeout_seconds": getattr(tool_info, "timeout_seconds", 300),
@@ -182,64 +204,79 @@ def _convert_property_schema(prop_schema: dict[str, Any], parent_name: str = "")
 
 
 @router.post("/tools/call")
-async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
+async def call_tool(request: Request, tool_request: ToolCallRequest) -> ToolCallResponse:
     """Call a registered Olive tool."""
-    import logging
-
-    logger = logging.getLogger(__name__)
+    temporal_worker = _get_temporal_worker(request) or _temporal_worker_fallback
 
     # Get the tool
-    tool_info = _registry.get(request.tool_name)
+    tool_info = _registry.get(tool_request.tool_name)
     if not tool_info:
-        return ToolCallResponse(success=False, error=f"Tool '{request.tool_name}' not found")
+        return ToolCallResponse(success=False, error=f"Tool '{tool_request.tool_name}' not found", error_type="tool_not_found")
 
     try:
         logger.info(
             "Olive tool call: name=%s context=%s injections=%s args=%s",
-            request.tool_name,
-            request.context,
+            tool_request.tool_name,
+            tool_request.context,
             [{"param": inj.param, "key": inj.config_key} for inj in tool_info.injections],
-            request.arguments,
+            tool_request.arguments,
         )
 
         # Normalize arguments: ensure it's a dict (handle OpenRouter empty string quirk)
         # When tools have no parameters, some providers send "" instead of {}
-        arguments = request.arguments
+        arguments = tool_request.arguments
         if not arguments or (isinstance(arguments, dict) and not arguments):
             arguments = {}
 
         # Merge context into arguments for injection
         final_args = dict(arguments)
-        if request.context:
-            # Inject context values for declared injections
-            for injection in tool_info.injections:
-                param = injection.param
-                config_key = injection.config_key
-                # Only inject if not already provided in arguments
-                if param not in final_args:
-                    value = request.context.get(config_key)
-                    if value is not None:
-                        final_args[param] = value
-                        logger.info("Injected %s=%s into tool %s", param, value, request.tool_name)
-                    elif injection.required:
-                        logger.warning(
-                            "Missing required context key=%s for param=%s",
-                            config_key,
-                            param,
-                        )
-                        return ToolCallResponse(
-                            success=False,
-                            error=f"Missing required context value '{config_key}' for param '{param}'",
-                        )
+        context = tool_request.context or {}
+        for injection in tool_info.injections:
+            param = injection.param
+            config_key = injection.config_key
+            # Only inject if not already provided in arguments
+            if param not in final_args:
+                value = context.get(config_key)
+                if value is not None:
+                    # Validate type if expected_type is known
+                    if injection.expected_type:
+                        expected_py_type = _TYPE_CHECKS.get(injection.expected_type)
+                        if expected_py_type and not isinstance(value, expected_py_type):
+                            return ToolCallResponse(
+                                success=False,
+                                error=(
+                                    f"Context key '{config_key}' for param '{param}' expected type "
+                                    f"'{injection.expected_type}', got '{type(value).__name__}'"
+                                ),
+                                error_type="validation_error",
+                            )
+                    final_args[param] = value
+                    logger.info("Injected %s=%s into tool %s", param, value, tool_request.tool_name)
+                elif injection.required:
+                    logger.warning(
+                        "Missing required context key=%s for param=%s",
+                        config_key,
+                        param,
+                    )
+                    return ToolCallResponse(
+                        success=False,
+                        error=f"Missing required context value '{config_key}' for param '{param}'",
+                        error_type="missing_context",
+                    )
 
-        logger.info("Final args for %s: %s", request.tool_name, list(final_args.keys()))
+        logger.info("Final args for %s: %s", tool_request.tool_name, list(final_args.keys()))
 
         # Use Temporal if available (v1 mode)
-        if _temporal_worker is not None:
+        if temporal_worker is not None:
             # Check fire-and-forget mode
             if tool_info.fire_and_forget:
                 # Fire-and-forget: start workflow without waiting
-                workflow_id = await _temporal_worker.start_tool(request.tool_name, final_args)
+                workflow_id = await temporal_worker.start_tool(
+                    tool_request.tool_name,
+                    final_args,
+                    timeout_seconds=tool_info.timeout_seconds,
+                    retry_policy=tool_info.retry_policy,
+                )
                 return ToolCallResponse(
                     success=True,
                     result=f"Workflow started: {workflow_id}",
@@ -251,7 +288,12 @@ async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
                 )
             else:
                 # Wait for completion
-                result = await _temporal_worker.execute_tool(request.tool_name, final_args)
+                result = await temporal_worker.execute_tool(
+                    tool_request.tool_name,
+                    final_args,
+                    timeout_seconds=tool_info.timeout_seconds,
+                    retry_policy=tool_info.retry_policy,
+                )
                 return ToolCallResponse(
                     success=True,
                     result=result,
@@ -263,11 +305,40 @@ async def call_tool(request: ToolCallRequest) -> ToolCallResponse:
 
         # Otherwise use direct execution (v0 mode)
         func = tool_info.func
-        if asyncio.iscoroutinefunction(func):
-            result = await func(**final_args)
-        else:
-            result = func(**final_args)
+        timeout = tool_info.timeout_seconds
+        try:
+            if asyncio.iscoroutinefunction(func):
+                result = await asyncio.wait_for(func(**final_args), timeout=timeout)
+            else:
+                # Note: wait_for cancels the future but cannot kill the executor thread.
+                # The thread continues running but its result is discarded, unblocking
+                # the uvicorn worker to serve other requests.
+                loop = asyncio.get_running_loop()
+                result = await asyncio.wait_for(
+                    loop.run_in_executor(None, lambda: func(**final_args)),
+                    timeout=timeout,
+                )
+        except asyncio.TimeoutError:
+            logger.error("Tool '%s' timed out after %ds", tool_request.tool_name, timeout)
+            return ToolCallResponse(
+                success=False,
+                error=f"Tool '{tool_request.tool_name}' timed out after {timeout}s",
+                error_type="timeout",
+            )
 
         return ToolCallResponse(success=True, result=result)
     except Exception as e:
-        return ToolCallResponse(success=False, error=str(e))
+        logger.exception("Tool '%s' execution failed", tool_request.tool_name)
+        return ToolCallResponse(success=False, error=str(e), error_type="execution_error")
+
+
+@router.get("/health")
+async def health_check(request: Request) -> dict[str, Any]:
+    """Health check endpoint."""
+    temporal_worker = _get_temporal_worker(request) or _temporal_worker_fallback
+    tools = _registry.list_all()
+    return {
+        "status": "ok",
+        "tools_count": len(tools),
+        "temporal_connected": temporal_worker is not None,
+    }

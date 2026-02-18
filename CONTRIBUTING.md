@@ -1,135 +1,111 @@
-# Guía de Contribución / Contributing Guide
+# Contributing to Olive
 
-[English version below](#english-version)
+Thank you for your interest in contributing. This guide covers the development setup, standards, and workflow.
 
-## Versión en Español
+## Development Setup
 
-¡Gracias por tu interés en contribuir a Olive! Este documento proporciona las pautas para contribuir al proyecto.
+```bash
+git clone git@github.com:YaVendio/olive.git
+cd olive
+uv sync --all-extras
+```
 
-### Código de Conducta
+This installs all dependencies including Temporal and dev tools.
 
-Este proyecto se adhiere a un código de conducta. Al participar, se espera que respetes este código.
+## Running Tests
 
-### Cómo Contribuir
+```bash
+# All tests
+uv run pytest
 
-1. **Fork el repositorio**
-   ```bash
-   git clone git@github.com:tu-usuario/olive.git
-   cd olive
-   ```
+# With coverage
+uv run pytest --cov=olive --cov=olive_client --cov-report=html
 
-2. **Crea una rama para tu feature**
-   ```bash
-   git checkout -b feature/nueva-caracteristica
-   ```
+# Single file
+uv run pytest tests/test_router.py -x
+```
 
-3. **Instala las dependencias de desarrollo**
-   ```bash
-   uv sync --all-extras --dev
-   ```
+## Code Quality
 
-4. **Realiza tus cambios**
-   - Sigue el estilo de código PEP 8
-   - Agrega tests para nuevas funcionalidades
-   - Actualiza la documentación si es necesario
+```bash
+# Lint
+uv run ruff check olive/ olive_client/ tests/
 
-5. **Ejecuta los tests**
-   ```bash
-   uv run pytest
-   uv run ruff check .
-   uv run basedpyright
-   ```
+# Format
+uv run ruff format olive/ olive_client/ tests/
 
-6. **Commit tus cambios**
-   ```bash
-   git commit -m "feat: agrega nueva característica X"
-   ```
-   Usamos [Conventional Commits](https://www.conventionalcommits.org/)
+# Type check
+uv run basedpyright olive/ olive_client/
+```
 
-7. **Push y crea un Pull Request**
-   ```bash
-   git push origin feature/nueva-caracteristica
-   ```
+Run all three before opening a PR.
 
-### Tipos de Contribuciones
+## Standards
 
-- **Reportar bugs**: Usa GitHub Issues
-- **Sugerir características**: Abre una discusión primero
-- **Mejorar documentación**: Siempre bienvenido
-- **Agregar tests**: Ayuda a mejorar la cobertura
-- **Corregir bugs**: Revisa los issues abiertos
+- **Python 3.12+**
+- **Ruff** for linting and formatting (line-length 120, target py313)
+- **basedpyright** for type checking (standard mode)
+- **Type hints** on all function signatures
+- **Tests** for every new feature or bug fix
+- **pytest** with `asyncio_mode=auto`
 
-### Estándares de Código
+## Workflow
 
-- Python 3.13+
-- Formato con `ruff`
-- Type hints obligatorios
-- Docstrings en español o inglés
-- Tests para nueva funcionalidad
+1. Fork the repository
+2. Create a feature branch
 
----
-
-## English Version
-
-Thank you for your interest in contributing to Olive! This document provides guidelines for contributing to the project.
-
-### Code of Conduct
-
-This project adheres to a code of conduct. By participating, you are expected to uphold this code.
-
-### How to Contribute
-
-1. **Fork the repository**
-   ```bash
-   git clone git@github.com:your-username/olive.git
-   cd olive
-   ```
-
-2. **Create a feature branch**
    ```bash
    git checkout -b feature/new-feature
    ```
 
-3. **Install development dependencies**
-   ```bash
-   uv sync --all-extras --dev
-   ```
+3. Make your changes
+4. Add or update tests
+5. Run lint, format, and type check
+6. Commit using [Conventional Commits](https://www.conventionalcommits.org/)
 
-4. **Make your changes**
-   - Follow PEP 8 style guide
-   - Add tests for new features
-   - Update documentation as needed
-
-5. **Run the tests**
-   ```bash
-   uv run pytest
-   uv run ruff check .
-   uv run basedpyright
-   ```
-
-6. **Commit your changes**
    ```bash
    git commit -m "feat: add new feature X"
+   git commit -m "fix: handle missing context in injection"
    ```
-   We use [Conventional Commits](https://www.conventionalcommits.org/)
 
-7. **Push and create a Pull Request**
+7. Push and open a Pull Request
+
    ```bash
    git push origin feature/new-feature
    ```
 
-### Types of Contributions
+## Project Structure
 
-- **Bug reports**: Use GitHub Issues
-- **Feature suggestions**: Open a discussion first
-- **Documentation improvements**: Always welcome
-- **Test additions**: Help improve coverage
-- **Bug fixes**: Check open issues
+```
+olive/
+  olive/                  # Server package
+    __init__.py           # Public exports (olive_tool, Inject, create_app, setup_olive)
+    decorator.py          # @olive_tool decorator
+    registry.py           # Thread-safe ToolRegistry singleton
+    router.py             # FastAPI router (endpoints, injection, execution)
+    schemas.py            # Pydantic models (ToolInfo, ToolCallRequest/Response, Inject)
+    config.py             # OliveConfig (.olive.yaml + env vars)
+    cli.py                # CLI commands (dev, serve, init, version)
+    setup.py              # setup_olive() for mounting on existing apps
+    server/
+      __init__.py
+      app.py              # create_app() factory with lifespan
+    temporal/
+      __init__.py
+      worker.py           # TemporalWorker lifecycle
+      workflows.py        # OliveToolWorkflow, OliveToolInput
+      activities.py       # Activity wrappers for tools
+  olive_client/           # Client package
+    __init__.py
+    client.py             # OliveClient (langgraph, langchain, elevenlabs)
+  tests/                  # Test suite
+  pyproject.toml
+```
 
-### Code Standards
+## Types of Contributions
 
-- Python 3.13+
-- Format with `ruff`
-- Type hints required
-- Docstrings in Spanish or English
-- Tests for new functionality
+- **Bug reports** -- open a GitHub Issue with reproduction steps
+- **Feature requests** -- open a discussion first to align on approach
+- **Documentation** -- always welcome, especially examples
+- **Test coverage** -- help close gaps in edge cases
+- **Bug fixes** -- check open issues for things to pick up

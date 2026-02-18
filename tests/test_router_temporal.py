@@ -62,7 +62,7 @@ def test_call_tool_with_temporal():
     mock_worker = mock.Mock()
 
     # Create an async mock that the sync TestClient can handle
-    async def mock_execute_tool(tool_name, args):
+    async def mock_execute_tool(tool_name, args, timeout_seconds=300, retry_policy=None):
         return {"result": "temporal result"}
 
     # Mock execute_tool to return coroutine
@@ -90,8 +90,11 @@ def test_call_tool_with_temporal():
         assert data["metadata"]["executed_via"] == "temporal"
         assert data["metadata"]["workflow_type"] == "OliveToolWorkflow"
 
-        # Verify worker was called
-        mock_worker.execute_tool.assert_called_once_with("temporal_test_tool", {"message": "test"})
+        # Verify worker was called with tool name and args
+        call_args = mock_worker.execute_tool.call_args
+        assert call_args[0] == ("temporal_test_tool", {"message": "test"})
+        assert "timeout_seconds" in call_args[1]
+        assert "retry_policy" in call_args[1]
     finally:
         # Clean up
         set_temporal_worker(None)
