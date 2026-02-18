@@ -345,7 +345,7 @@ with unittest.mock.patch("olive.cli.app") as mock_app:
 
     # Run the script
 
-    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True, timeout=10)
 
     # Check result
     if result.returncode != 0:
