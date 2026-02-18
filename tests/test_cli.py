@@ -19,7 +19,7 @@ from olive.cli import (
     start_temporal_dev_server,
     version,
 )
-from olive.config import OliveConfig
+from olive.config import OliveConfig, TemporalConfig
 
 runner = CliRunner()
 
@@ -83,9 +83,16 @@ def test_init_command(tmp_path):
     assert "Files already exist" in result.output
 
 
+def _temporal_enabled_config(**overrides):
+    """Return an OliveConfig with temporal explicitly enabled."""
+    temporal_kwargs = {"enabled": True, **overrides}
+    return OliveConfig(temporal=TemporalConfig(**temporal_kwargs))
+
+
 def test_dev_command():
     """Test dev command."""
     with (
+        mock.patch("olive.cli.OliveConfig.from_file", return_value=_temporal_enabled_config()),
         mock.patch("olive.cli.check_temporal_running", return_value=True),
         mock.patch("olive.cli.TemporalWorker") as mock_worker_class,
         mock.patch("uvicorn.run") as mock_uvicorn,
@@ -109,6 +116,7 @@ def test_dev_command():
 def test_dev_command_starts_temporal():
     """Test dev command starts Temporal if not running."""
     with (
+        mock.patch("olive.cli.OliveConfig.from_file", return_value=_temporal_enabled_config()),
         mock.patch("olive.cli.check_temporal_running") as mock_check,
         mock.patch("olive.cli.start_temporal_dev_server") as mock_start,
         mock.patch("olive.cli.TemporalWorker") as mock_worker_class,
@@ -135,6 +143,7 @@ def test_dev_command_starts_temporal():
 def test_dev_command_temporal_timeout():
     """Test dev command exits if Temporal doesn't start."""
     with (
+        mock.patch("olive.cli.OliveConfig.from_file", return_value=_temporal_enabled_config()),
         mock.patch("olive.cli.check_temporal_running", return_value=False),
         mock.patch("olive.cli.start_temporal_dev_server") as mock_start,
         mock.patch("time.sleep"),
@@ -149,6 +158,7 @@ def test_dev_command_temporal_timeout():
 def test_dev_command_cleanup():
     """Test dev command cleanup on exit."""
     with (
+        mock.patch("olive.cli.OliveConfig.from_file", return_value=_temporal_enabled_config()),
         mock.patch("olive.cli.check_temporal_running") as mock_check,
         mock.patch("olive.cli.start_temporal_dev_server") as mock_start,
         mock.patch("olive.cli.TemporalWorker") as mock_worker_class,
@@ -177,7 +187,11 @@ def test_dev_command_cleanup():
 
 def test_serve_command():
     """Test serve command."""
-    with mock.patch("olive.cli.TemporalWorker") as mock_worker_class, mock.patch("uvicorn.run") as mock_uvicorn:
+    with (
+        mock.patch("olive.cli.OliveConfig.from_file", return_value=_temporal_enabled_config()),
+        mock.patch("olive.cli.TemporalWorker") as mock_worker_class,
+        mock.patch("uvicorn.run") as mock_uvicorn,
+    ):
         mock_worker = mock.Mock()
         mock_worker_class.return_value = mock_worker
 
@@ -201,7 +215,11 @@ def test_serve_command():
 
 def test_serve_command_cleanup():
     """Test serve command cleanup on exit."""
-    with mock.patch("olive.cli.TemporalWorker") as mock_worker_class, mock.patch("uvicorn.run") as mock_uvicorn:
+    with (
+        mock.patch("olive.cli.OliveConfig.from_file", return_value=_temporal_enabled_config()),
+        mock.patch("olive.cli.TemporalWorker") as mock_worker_class,
+        mock.patch("uvicorn.run") as mock_uvicorn,
+    ):
         mock_worker = mock.Mock()
         mock_worker_class.return_value = mock_worker
 
@@ -345,7 +363,7 @@ with unittest.mock.patch("olive.cli.app") as mock_app:
 
     # Run the script
 
-    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True, timeout=10)
 
     # Check result
     if result.returncode != 0:

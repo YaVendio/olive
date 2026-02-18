@@ -67,7 +67,11 @@ class TemporalWorker:
         if tls_config is not None:
             connect_kwargs["tls"] = tls_config
 
-        # Temporal Cloud requires API key auth; use data plane address with tls.
+        # Temporal Cloud always requires TLS, even without mTLS client certs
+        if temporal_config.is_cloud and "tls" not in connect_kwargs:
+            connect_kwargs["tls"] = True
+
+        # Temporal Cloud API key auth
         if temporal_config.is_cloud and temporal_config.cloud_api_key:
             connect_kwargs.setdefault("rpc_metadata", {})
             connect_kwargs["rpc_metadata"]["authorization"] = f"Bearer {temporal_config.cloud_api_key}"

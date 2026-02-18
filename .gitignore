@@ -160,3 +160,6 @@ ehthumbs.db
 # Local environment variables
 .env.local
 .env.*.local
+
+# Temporal dev server database
+.temporal.db
